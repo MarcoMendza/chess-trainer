@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import { VitePWA } from "vite-plugin-pwa";
 
 // Headers necesarios para que stockfish.wasm multihilo funcione (Fase 3).
@@ -12,6 +13,10 @@ const crossOriginIsolationHeaders = {
 
 export default defineConfig({
   plugins: [
+    // HTTPS en dev: el cel accede por IP (no localhost), que de otro modo NO es secure
+    // context. Sin secure context fallan crypto.randomUUID(), el service worker y
+    // crossOriginIsolated. basic-ssl genera un cert autofirmado (el cel pedirá confiar una vez).
+    basicSsl(),
     react(),
     tailwindcss(),
     VitePWA({
