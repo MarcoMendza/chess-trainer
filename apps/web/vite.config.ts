@@ -27,6 +27,7 @@ export default defineConfig({
         // El binario del motor (~7 MB) NO se precachea en la instalación: se descarga
         // bajo demanda y se cachea tras el primer uso (CacheFirst) para soporte offline.
         globIgnores: ["**/engine/**"],
+        navigateFallbackDenylist: [/^\/engine\//, /\/[^/?]+\.[^/]+$/],
         runtimeCaching: [
           {
             urlPattern: /\/engine\/.*\.(?:js|wasm)$/,
