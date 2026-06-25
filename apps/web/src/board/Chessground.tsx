@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Chessground as createChessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { Config } from "chessground/config";
+import type { DrawShape } from "chessground/draw";
 import type { Key } from "chessground/types";
 
 export interface BoardProps {
@@ -16,6 +17,8 @@ export interface BoardProps {
   dests?: Map<Key, Key[]>;
   /** Último movimiento [from, to] para resaltarlo. */
   lastMove?: [Key, Key];
+  /** Formas dibujadas por la app (p. ej. flecha de mejor jugada del motor). */
+  autoShapes?: DrawShape[];
   /** Callback al soltar una pieza en destino legal. */
   onMove?: (orig: Key, dest: Key) => void;
 }
@@ -31,6 +34,7 @@ export default function Chessground({
   turnColor,
   dests,
   lastMove,
+  autoShapes,
   onMove,
 }: BoardProps) {
   const elRef = useRef<HTMLDivElement>(null);
@@ -70,9 +74,10 @@ export default function Chessground({
         },
       },
       draggable: { enabled: !viewOnly },
+      drawable: { enabled: true, autoShapes: autoShapes ?? [] },
     };
     api.set(config);
-  }, [fen, orientation, viewOnly, turnColor, dests, lastMove]);
+  }, [fen, orientation, viewOnly, turnColor, dests, lastMove, autoShapes]);
 
   // Contenedor cuadrado responsivo; chessground monta dentro del div interno.
   return (

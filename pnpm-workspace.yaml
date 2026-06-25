@@ -3,3 +3,6 @@ packages:
   - "packages/*"
 allowBuilds:
   esbuild: true
+  # No necesitamos el postinstall de stockfish (solo crea un symlink al build completo de
+  # 113 MB que no usamos). Copiamos el build "lite" a mano en scripts/copy-engine.mjs.
+  stockfish: false

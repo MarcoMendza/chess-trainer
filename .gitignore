@@ -31,6 +31,9 @@ pnpm-debug.log*
 # PWA generated
 apps/web/dev-dist/
 
+# Binarios del motor: se copian desde el paquete npm 'stockfish' (predev/prebuild), no se versionan
+apps/web/public/engine/
+
 # Claude Code / herramientas de IA (no versionar)
 CLAUDE.md
 CLAUDE.MD

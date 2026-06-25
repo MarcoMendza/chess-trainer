@@ -82,14 +82,30 @@ function ImportPgnSection() {
         </select>
       </label>
       {error && <p className="text-sm text-red-400">{error}</p>}
-      <button
-        type="button"
-        onClick={onImport}
-        disabled={!pgn.trim()}
-        className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700 disabled:opacity-40"
-      >
-        Importar partida
-      </button>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onImport}
+          disabled={!pgn.trim()}
+          className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700 disabled:opacity-40"
+        >
+          Importar partida
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!tryLoadPgn(pgn).ok) {
+              setError("PGN inválido.");
+              return;
+            }
+            navigate("/analizar", { state: { pgn: pgn.trim() } });
+          }}
+          disabled={!pgn.trim()}
+          className="rounded-lg border border-gray-600 px-4 py-3 text-sm active:bg-gray-700 disabled:opacity-40"
+        >
+          Analizar
+        </button>
+      </div>
     </section>
   );
 }
@@ -97,6 +113,7 @@ function ImportPgnSection() {
 // ===== Cargar FEN =====
 
 function LoadFenSection() {
+  const navigate = useNavigate();
   const [fenInput, setFenInput] = useState("");
   const [chess, setChess] = useState<Chess | null>(null);
   const [idea, setIdea] = useState("");
@@ -175,13 +192,22 @@ function LoadFenSection() {
             placeholder="Idea / nota (opcional)…"
             className={inputClass}
           />
-          <button
-            type="button"
-            onClick={onSave}
-            className="w-full rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700"
-          >
-            Guardar como tarjeta de estudio
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onSave}
+              className="flex-1 rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700"
+            >
+              Guardar como tarjeta
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/analizar", { state: { fen: chess.fen() } })}
+              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white active:bg-emerald-700"
+            >
+              Analizar
+            </button>
+          </div>
           {savedMsg && <p className="text-sm text-emerald-400">{savedMsg}</p>}
         </div>
       )}

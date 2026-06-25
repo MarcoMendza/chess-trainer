@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Chess } from "chess.js";
 import type { Key } from "chessground/types";
 import Chessground from "../board/Chessground.tsx";
@@ -27,6 +27,7 @@ function buildReplay(pgn: string): ReplayData {
 
 export default function GameViewPage() {
   const { gameId } = useParams<{ gameId: string }>();
+  const navigate = useNavigate();
   const [game, setGame] = useState<Game | undefined>();
   const [loading, setLoading] = useState(true);
   const [ply, setPly] = useState(0);
@@ -100,6 +101,16 @@ export default function GameViewPage() {
         />
         <NavButton onClick={() => setPly(maxPly)} disabled={clampedPly === maxPly} label="⏭" />
       </div>
+
+      <button
+        type="button"
+        onClick={() =>
+          navigate("/analizar", { state: { pgn: game.pgn, ply: clampedPly } })
+        }
+        className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700"
+      >
+        Analizar con el motor
+      </button>
     </div>
   );
 }

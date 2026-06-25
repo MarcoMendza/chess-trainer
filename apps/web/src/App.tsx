@@ -5,6 +5,7 @@ import CollectionDetailPage from "./games/CollectionDetailPage.tsx";
 import GameFormPage from "./games/GameFormPage.tsx";
 import GameViewPage from "./games/GameViewPage.tsx";
 import ImportPage from "./games/ImportPage.tsx";
+import AnalysisPage from "./analysis/AnalysisPage.tsx";
 
 const navItems = [
   { to: "/", label: "Estudiar", icon: "♞", end: true },
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/torneos/:collectionId/nueva" element={<GameFormPage />} />
             <Route path="/partida/:gameId" element={<GameViewPage />} />
             <Route path="/importar" element={<ImportPage />} />
+            <Route path="/analizar" element={<AnalysisPage />} />
           </Routes>
         </div>
       </main>

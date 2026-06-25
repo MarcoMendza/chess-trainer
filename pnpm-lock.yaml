@@ -28,6 +28,9 @@ importers:
       react-router-dom:
         specifier: ^7.6.0
         version: 7.18.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      stockfish:
+        specifier: ^18.0.8
+        version: 18.0.8
       ts-fsrs:
         specifier: ^4.7.0
         version: 4.7.1
@@ -1917,6 +1920,10 @@ packages:
     resolution: {integrity: sha512-2ymg6oRBpebeZi9UUNsgQ89bhx01TcTkmNTGnNO88imTmbSgy4nfujrgVEFKWpMTEGA11EDkTt7mqObTPdigIA==}
     engines: {node: '>= 8'}
     deprecated: The work that was done in this beta branch won't be included in future versions
+
+  stockfish@18.0.8:
+    resolution: {integrity: sha512-z+f2UMPXLylDBGjv9e9zU8QulY7hUl8MYHesLRrdddewlOXjJrUSmtNmbtID1/F72EPhq0CCkCNxgWS5MQVWtQ==}
+    hasBin: true
 
   stop-iteration-iterator@1.1.0:
     resolution: {integrity: sha512-eLoXW/DHyl62zxY4SCaIgnRhuMr6ri4juEYARS8E6sCEqzKpOiE521Ucofdx+KnDZl5xmvGYaaKCk5FEOxJCoQ==}
@@ -4118,6 +4125,8 @@ snapshots:
   source-map@0.8.0-beta.0:
     dependencies:
       whatwg-url: 7.1.0
+
+  stockfish@18.0.8: {}
 
   stop-iteration-iterator@1.1.0:
     dependencies:

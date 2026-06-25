@@ -55,4 +55,26 @@ export function defaultPromotion(): PieceSymbol {
   return "q";
 }
 
+/**
+ * Convierte una variante en UCI (e2e4, e7e5, …) a SAN, reproduciéndola sobre `fen`.
+ * Corta si alguna jugada resulta ilegal. `max` acota la longitud mostrada.
+ */
+export function uciLineToSan(fen: string, uci: string[], max = 8): string[] {
+  const chess = new Chess(fen);
+  const out: string[] = [];
+  for (const u of uci.slice(0, max)) {
+    try {
+      const move = chess.move({
+        from: u.slice(0, 2),
+        to: u.slice(2, 4),
+        promotion: u.length > 4 ? u[4] : undefined,
+      });
+      out.push(move.san);
+    } catch {
+      break;
+    }
+  }
+  return out;
+}
+
 export type { Square };

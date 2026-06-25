@@ -23,6 +23,22 @@ export default defineConfig({
       registerType: "autoUpdate",
       // Permite probar el service worker también en `vite dev`.
       devOptions: { enabled: true },
+      workbox: {
+        // El binario del motor (~7 MB) NO se precachea en la instalación: se descarga
+        // bajo demanda y se cachea tras el primer uso (CacheFirst) para soporte offline.
+        globIgnores: ["**/engine/**"],
+        runtimeCaching: [
+          {
+            urlPattern: /\/engine\/.*\.(?:js|wasm)$/,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "stockfish-engine",
+              expiration: { maxEntries: 6, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
+      },
       manifest: {
         name: "Chess Trainer",
         short_name: "Chess",
