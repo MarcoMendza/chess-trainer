@@ -5,7 +5,7 @@ import type { Key } from "chessground/types";
 import Chessground from "../board/Chessground.tsx";
 import { legalDests, toColor, tryLoadFen, tryLoadPgn } from "../board/useChess.ts";
 import { createGame, extractPgnHeaders, listCollections } from "./repo.ts";
-import { saveLooseFen } from "../study/repo.ts";
+import SaveCardSheet from "../study/SaveCardSheet.tsx";
 import type { Collection } from "../db/schema.ts";
 
 const inputClass =
@@ -116,9 +116,9 @@ function LoadFenSection() {
   const navigate = useNavigate();
   const [fenInput, setFenInput] = useState("");
   const [chess, setChess] = useState<Chess | null>(null);
-  const [idea, setIdea] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   // bump fuerza re-render + recálculo tras mutar la instancia chess (move).
   const [bump, setBump] = useState(0);
 
@@ -147,12 +147,6 @@ function LoadFenSection() {
     } catch {
       // movimiento ilegal (no debería ocurrir: dests viene de chess.js)
     }
-  }
-
-  async function onSave() {
-    if (!chess) return;
-    await saveLooseFen(chess.fen(), idea.trim() || undefined);
-    setSavedMsg("Guardado como tarjeta en «Posiciones sueltas».");
   }
 
   return (
@@ -186,16 +180,10 @@ function LoadFenSection() {
           <p className="text-xs text-gray-400">
             Puedes mover piezas para explorar la posición.
           </p>
-          <input
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            placeholder="Idea / nota (opcional)…"
-            className={inputClass}
-          />
           <div className="flex gap-2">
             <button
               type="button"
-              onClick={onSave}
+              onClick={() => setSheetOpen(true)}
               className="flex-1 rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700"
             >
               Guardar como tarjeta
@@ -210,6 +198,16 @@ function LoadFenSection() {
           </div>
           {savedMsg && <p className="text-sm text-emerald-400">{savedMsg}</p>}
         </div>
+      )}
+
+      {sheetOpen && chess && (
+        <SaveCardSheet
+          fen={chess.fen()}
+          onClose={() => setSheetOpen(false)}
+          onSaved={() =>
+            setSavedMsg("Guardado como tarjeta en «Posiciones sueltas».")
+          }
+        />
       )}
     </section>
   );

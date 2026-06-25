@@ -14,6 +14,7 @@ import {
 import { useEngine } from "../engine/useEngine.ts";
 import EvalBar, { formatScore } from "./EvalBar.tsx";
 import MoveList from "./MoveList.tsx";
+import SaveCardSheet from "../study/SaveCardSheet.tsx";
 
 interface AnalysisState {
   fen?: string;
@@ -43,6 +44,8 @@ export default function AnalysisPage() {
 
   const { ready, lines, analyze, stop, multipv, setMultipv } = useEngine();
   const [analyzing, setAnalyzing] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
 
   // Lanza/relanza el análisis al cambiar la posición (el motor hace `stop` antes del `go`).
   useEffect(() => {
@@ -155,11 +158,33 @@ export default function AnalysisPage() {
       )}
 
       <div>
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          className="w-full rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700"
+        >
+          Guardar como tarjeta
+        </button>
+        {savedMsg && (
+          <p className="mt-1 text-center text-sm text-emerald-400">{savedMsg}</p>
+        )}
+      </div>
+
+      <div>
         <h2 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
           Jugadas
         </h2>
         <MoveList moves={line.moves} cursor={line.cursor} onSelect={line.goTo} />
       </div>
+
+      {sheetOpen && (
+        <SaveCardSheet
+          fen={line.currentFen}
+          ply={line.cursor || undefined}
+          onClose={() => setSheetOpen(false)}
+          onSaved={() => setSavedMsg("Guardado en «Posiciones sueltas».")}
+        />
+      )}
     </div>
   );
 }

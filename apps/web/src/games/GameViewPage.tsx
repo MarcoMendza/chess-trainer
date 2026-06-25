@@ -4,6 +4,8 @@ import { Chess } from "chess.js";
 import type { Key } from "chessground/types";
 import Chessground from "../board/Chessground.tsx";
 import { getGame } from "./repo.ts";
+import TagPicker from "../tags/TagPicker.tsx";
+import { setGameTags, tagsForGame } from "../tags/repo.ts";
 import type { Game } from "../db/schema.ts";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -31,14 +33,21 @@ export default function GameViewPage() {
   const [game, setGame] = useState<Game | undefined>();
   const [loading, setLoading] = useState(true);
   const [ply, setPly] = useState(0);
+  const [gameTagIds, setGameTagIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!gameId) return;
     void (async () => {
       setGame(await getGame(gameId));
+      setGameTagIds((await tagsForGame(gameId)).map((t) => t.id));
       setLoading(false);
     })();
   }, [gameId]);
+
+  function onTagsChange(ids: string[]) {
+    setGameTagIds(ids);
+    if (gameId) void setGameTags(gameId, ids);
+  }
 
   const replay = useMemo<ReplayData | null>(() => {
     if (!game) return null;
@@ -80,6 +89,13 @@ export default function GameViewPage() {
         viewOnly
         lastMove={lastMove}
       />
+
+      <div>
+        <h2 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+          Temas
+        </h2>
+        <TagPicker value={gameTagIds} onChange={onTagsChange} />
+      </div>
 
       <div className="flex items-center justify-between gap-2">
         <NavButton onClick={() => setPly(0)} disabled={clampedPly === 0} label="⏮" />

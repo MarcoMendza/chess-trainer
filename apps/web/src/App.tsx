@@ -6,9 +6,13 @@ import GameFormPage from "./games/GameFormPage.tsx";
 import GameViewPage from "./games/GameViewPage.tsx";
 import ImportPage from "./games/ImportPage.tsx";
 import AnalysisPage from "./analysis/AnalysisPage.tsx";
+import TrainPage from "./train/TrainPage.tsx";
+import TrainThemePage from "./train/TrainThemePage.tsx";
+import TagsAdminPage from "./tags/TagsAdminPage.tsx";
 
 const navItems = [
   { to: "/", label: "Estudiar", icon: "♞", end: true },
+  { to: "/entrenar", label: "Entrenar", icon: "♟", end: false },
   { to: "/torneos", label: "Torneos", icon: "♜", end: false },
   { to: "/importar", label: "Importar", icon: "♙", end: false },
 ];
@@ -26,6 +30,9 @@ export default function App() {
             <Route path="/partida/:gameId" element={<GameViewPage />} />
             <Route path="/importar" element={<ImportPage />} />
             <Route path="/analizar" element={<AnalysisPage />} />
+            <Route path="/entrenar" element={<TrainPage />} />
+            <Route path="/entrenar/temas" element={<TagsAdminPage />} />
+            <Route path="/entrenar/:tagId" element={<TrainThemePage />} />
           </Routes>
         </div>
       </main>

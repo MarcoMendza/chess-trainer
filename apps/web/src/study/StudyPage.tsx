@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import Chessground from "../board/Chessground.tsx";
 import { rateCard } from "./fsrs.ts";
-import { getDueStudyCards, type StudyCard } from "./repo.ts";
-import type { ReviewRating } from "../db/schema.ts";
+import { getDueStudyCards, getDueTagCounts, type StudyCard } from "./repo.ts";
+import { listTags } from "../tags/repo.ts";
+import { videoUrlAt } from "../lib/video.ts";
+import { categoryChip } from "../tags/categories.ts";
+import type { ReviewRating, Tag } from "../db/schema.ts";
 
 const RATINGS: Array<{ value: ReviewRating; label: string; className: string }> = [
   { value: 1, label: "Otra vez", className: "bg-red-600 active:bg-red-700" },
@@ -17,15 +20,37 @@ export default function StudyPage() {
   const [revealed, setRevealed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reviewedCount, setReviewedCount] = useState(0);
+  // null = "todas" (intercalado); string = bloque por ese tag.
+  const [mode, setMode] = useState<string | null>(null);
+  const [tagsById, setTagsById] = useState<Map<string, Tag>>(new Map());
+  const [dueCounts, setDueCounts] = useState<Map<string, number>>(new Map());
   const shownAt = useRef<number>(Date.now());
 
+  async function loadQueue(tagId: string | null) {
+    setLoading(true);
+    const cards = await getDueStudyCards(tagId ? { tagId } : {});
+    setQueue(cards);
+    setIndex(0);
+    setRevealed(false);
+    setReviewedCount(0);
+    setLoading(false);
+    shownAt.current = Date.now();
+  }
+
+  // Carga inicial: tags, conteos por tema y la cola intercalada.
   useEffect(() => {
     void (async () => {
-      setQueue(await getDueStudyCards());
-      setLoading(false);
-      shownAt.current = Date.now();
+      const [tags, counts] = await Promise.all([listTags(), getDueTagCounts()]);
+      setTagsById(new Map(tags.map((t) => [t.id, t])));
+      setDueCounts(counts);
+      await loadQueue(null);
     })();
   }, []);
+
+  function selectMode(tagId: string | null) {
+    setMode(tagId);
+    void loadQueue(tagId);
+  }
 
   const current = queue[index];
 
@@ -39,24 +64,66 @@ export default function StudyPage() {
     shownAt.current = Date.now();
   }
 
+  const dueTags = [...dueCounts.entries()]
+    .map(([id, count]) => ({ tag: tagsById.get(id), count }))
+    .filter((x): x is { tag: Tag; count: number } => !!x.tag)
+    .sort((a, b) => a.tag.name.localeCompare(b.tag.name, "es"));
+
+  const modeSelector = (
+    <div className="flex flex-wrap gap-1.5">
+      <button
+        type="button"
+        onClick={() => selectMode(null)}
+        className={`rounded-full border px-3 py-1 text-xs ${
+          mode === null
+            ? "border-emerald-500 bg-emerald-600 text-white"
+            : "border-gray-600 text-gray-300"
+        }`}
+      >
+        Todas (intercalado)
+      </button>
+      {dueTags.map(({ tag, count }) => (
+        <button
+          key={tag.id}
+          type="button"
+          onClick={() => selectMode(tag.id)}
+          className={`rounded-full border px-3 py-1 text-xs ${
+            mode === tag.id
+              ? "border-emerald-500 bg-emerald-600 text-white"
+              : categoryChip(tag.category)
+          }`}
+        >
+          {tag.name} · {count}
+        </button>
+      ))}
+    </div>
+  );
+
   if (loading) return <p className="text-sm text-gray-400">Cargando…</p>;
 
   if (!current) {
     return (
-      <div className="space-y-2 pt-8 text-center">
-        <p className="text-2xl">✅</p>
-        <p className="font-medium">No hay más tarjetas por hoy.</p>
-        {reviewedCount > 0 && (
-          <p className="text-sm text-gray-400">
-            Repasaste {reviewedCount} {reviewedCount === 1 ? "tarjeta" : "tarjetas"}.
-          </p>
-        )}
+      <div className="space-y-4">
+        <h1 className="text-xl font-semibold">Estudiar</h1>
+        {modeSelector}
+        <div className="space-y-2 pt-6 text-center">
+          <p className="text-2xl">✅</p>
+          <p className="font-medium">No hay más tarjetas por ahora.</p>
+          {reviewedCount > 0 && (
+            <p className="text-sm text-gray-400">
+              Repasaste {reviewedCount} {reviewedCount === 1 ? "tarjeta" : "tarjetas"}.
+            </p>
+          )}
+        </div>
       </div>
     );
   }
 
-  const { position } = current;
+  const { position, tagIds } = current;
   const orientation = position.side_to_move === "b" ? "black" : "white";
+  const cardTags = tagIds
+    .map((id) => tagsById.get(id))
+    .filter((t): t is Tag => !!t);
 
   return (
     <div className="space-y-4">
@@ -66,6 +133,8 @@ export default function StudyPage() {
           {index + 1}/{queue.length}
         </span>
       </div>
+
+      {modeSelector}
 
       <Chessground fen={position.fen} orientation={orientation} viewOnly />
 
@@ -83,18 +152,37 @@ export default function StudyPage() {
         </button>
       ) : (
         <div className="space-y-4">
-          <div className="rounded-lg border border-gray-700 bg-gray-800 p-4">
+          <div className="space-y-2 rounded-lg border border-gray-700 bg-gray-800 p-4">
             {position.idea && <p className="text-sm">{position.idea}</p>}
             {position.eval_note && (
-              <p className="mt-2 text-xs text-gray-400">{position.eval_note}</p>
-            )}
-            {position.card_type === "best_move" && position.best_move && (
-              <p className="mt-2 text-sm font-medium text-emerald-400">
-                Mejor jugada: {position.best_move}
-              </p>
+              <p className="text-xs text-gray-400">{position.eval_note}</p>
             )}
             {!position.idea && !position.eval_note && (
               <p className="text-sm text-gray-400">(Sin nota para esta posición.)</p>
+            )}
+
+            {cardTags.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {cardTags.map((t) => (
+                  <span
+                    key={t.id}
+                    className={`rounded-full border px-2 py-0.5 text-xs ${categoryChip(t.category)}`}
+                  >
+                    {t.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {position.source_url && (
+              <a
+                href={videoUrlAt(position.source_url, position.source_time)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white active:bg-red-700"
+              >
+                ▶ Ver video{position.source_time ? ` · ${position.source_time}` : ""}
+              </a>
             )}
           </div>
 
