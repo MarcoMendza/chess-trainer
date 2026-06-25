@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+dist-ssr/
+*.local
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# env
+.env
+.env.*
+!.env.example
+
+# PWA generated
+apps/web/dev-dist/
+
+# Claude Code / herramientas de IA (no versionar)
+CLAUDE.md
+CLAUDE.MD
+.claude/
+AGENTS.md
+.cursor/
+.aider*

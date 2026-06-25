@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+/* Tablero de Lichess (chessground): estilos base + tema de casillas + set de piezas. */
+@import "chessground/assets/chessground.base.css";
+@import "chessground/assets/chessground.brown.css";
+@import "chessground/assets/chessground.cburnett.css";
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "chess-trainer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App de estudio de ajedrez, local-first en el cel. Monorepo (Fase 1: apps/web).",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "preview": "pnpm --filter web preview",
+    "typecheck": "pnpm --filter web typecheck"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}
