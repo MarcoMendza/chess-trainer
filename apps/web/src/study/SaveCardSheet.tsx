@@ -1,7 +1,12 @@
 import { useState } from "react";
 import Chessground from "../board/Chessground.tsx";
 import TagPicker from "../tags/TagPicker.tsx";
+import { toColor } from "../board/useChess.ts";
 import { saveCard } from "./repo.ts";
+import { useVariationTree } from "./useVariationTree.ts";
+import VariationTree from "./VariationTree.tsx";
+import { hasMoves } from "./variations.ts";
+import type { NodeColor } from "../db/schema.ts";
 
 interface SaveCardSheetProps {
   fen: string;
@@ -31,8 +36,10 @@ export default function SaveCardSheet({
   const [sourceTime, setSourceTime] = useState("");
   const [tagIds, setTagIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
 
   const orientation = fen.split(" ")[1] === "b" ? "black" : "white";
+  const variations = useVariationTree(fen);
 
   async function onSave() {
     setSaving(true);
@@ -46,6 +53,7 @@ export default function SaveCardSheet({
         sourceUrl: sourceUrl.trim() || undefined,
         sourceTime: sourceTime.trim() || undefined,
         tagIds,
+        tree: hasMoves(variations.tree) ? variations.tree : undefined,
       });
       onSaved?.();
       onClose();
@@ -128,6 +136,29 @@ export default function SaveCardSheet({
           <TagPicker value={tagIds} onChange={setTagIds} />
         </div>
 
+        {/* ===== Editor de variantes (opcional) ===== */}
+        <div className="space-y-3 rounded-lg border border-gray-700 p-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">
+              Variantes{" "}
+              {hasMoves(variations.tree) && (
+                <span className="text-xs text-emerald-400">· con árbol</span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={() => setEditorOpen((v) => !v)}
+              className="rounded-lg border border-gray-600 px-3 py-1 text-xs active:bg-gray-700"
+            >
+              {editorOpen ? "Ocultar" : "Agregar variante"}
+            </button>
+          </div>
+
+          {editorOpen && (
+            <VariationEditor variations={variations} orientation={orientation} />
+          )}
+        </div>
+
         <button
           type="button"
           onClick={onSave}
@@ -137,6 +168,113 @@ export default function SaveCardSheet({
           {saving ? "Guardando…" : "Guardar tarjeta"}
         </button>
       </div>
+    </div>
+  );
+}
+
+const COLOR_OPTIONS: Array<{ value: NodeColor; label: string; className: string }> = [
+  { value: "main", label: "Principal", className: "bg-emerald-600" },
+  { value: "sub", label: "Subvariante", className: "bg-amber-600" },
+  { value: "conditional", label: "Condicional", className: "bg-sky-600" },
+  { value: "bad", label: "Mala", className: "bg-red-600" },
+];
+
+/**
+ * Tablero interactivo + controles de nodo + árbol en vivo.
+ * Construyes la línea moviendo piezas; eliges el nodo en el árbol para colorearlo
+ * o anotarlo. La raíz (posición de la tarjeta) no admite color ni nota.
+ */
+function VariationEditor({
+  variations,
+  orientation,
+}: {
+  variations: ReturnType<typeof useVariationTree>;
+  orientation: "white" | "black";
+}) {
+  const turnColor = toColor(
+    variations.currentFen.split(" ")[1] === "b" ? "b" : "w",
+  );
+  return (
+    <div className="space-y-3">
+      <div className="mx-auto w-56">
+        <Chessground
+          fen={variations.currentFen}
+          orientation={orientation}
+          turnColor={turnColor}
+          dests={variations.dests}
+          lastMove={variations.lastMove}
+          onMove={variations.play}
+        />
+      </div>
+
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={variations.back}
+          disabled={variations.atRoot}
+          className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
+        >
+          ◀ Atrás
+        </button>
+        <button
+          type="button"
+          onClick={variations.reset}
+          disabled={variations.atRoot}
+          className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
+        >
+          ⏮ Inicio
+        </button>
+        <button
+          type="button"
+          onClick={variations.deleteCurrent}
+          disabled={variations.atRoot}
+          className="rounded-lg border border-red-700 px-3 py-1.5 text-xs text-red-300 active:bg-red-900/40 disabled:opacity-30"
+        >
+          🗑 Borrar nodo
+        </button>
+      </div>
+
+      {/* Controles del nodo seleccionado */}
+      {variations.atRoot ? (
+        <p className="text-center text-xs text-gray-500">
+          Mueve una pieza para empezar la línea principal.
+        </p>
+      ) : (
+        <div className="space-y-2 rounded-lg border border-gray-700 bg-gray-800/60 p-2">
+          <div className="grid grid-cols-4 gap-1.5">
+            {COLOR_OPTIONS.map((opt) => {
+              const active = variations.current.color === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    variations.setColor(active ? null : opt.value)
+                  }
+                  className={`rounded-lg px-1 py-1.5 text-xs font-medium text-white ${opt.className} ${
+                    active ? "ring-2 ring-white" : "opacity-70"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <textarea
+            value={variations.current.note ?? ""}
+            onChange={(e) => variations.setNote(e.target.value)}
+            rows={2}
+            placeholder="Nota para esta jugada (opcional)"
+            className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+          />
+        </div>
+      )}
+
+      <VariationTree
+        tree={variations.tree}
+        selectedPath={variations.path}
+        onSelect={variations.goToPath}
+      />
     </div>
   );
 }

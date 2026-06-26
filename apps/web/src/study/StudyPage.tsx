@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Chessground from "../board/Chessground.tsx";
 import { rateCard } from "./fsrs.ts";
 import { getDueStudyCards, getDueTagCounts, type StudyCard } from "./repo.ts";
+import { getVariationByPosition } from "./variations.ts";
+import StudyPlayer, { type PlayMode } from "./StudyPlayer.tsx";
 import { listTags } from "../tags/repo.ts";
 import { videoUrlAt } from "../lib/video.ts";
 import { categoryChip } from "../tags/categories.ts";
-import type { ReviewRating, Tag } from "../db/schema.ts";
+import type { ReviewRating, Tag, VariationNode } from "../db/schema.ts";
 
 const RATINGS: Array<{ value: ReviewRating; label: string; className: string }> = [
   { value: 1, label: "Otra vez", className: "bg-red-600 active:bg-red-700" },
@@ -24,7 +27,11 @@ export default function StudyPage() {
   const [mode, setMode] = useState<string | null>(null);
   const [tagsById, setTagsById] = useState<Map<string, Tag>>(new Map());
   const [dueCounts, setDueCounts] = useState<Map<string, number>>(new Map());
+  // Árbol de variantes de la tarjeta actual (null = sin árbol). Modo de juego por sesión.
+  const [tree, setTree] = useState<VariationNode | null>(null);
+  const [playMode, setPlayMode] = useState<PlayMode>("color");
   const shownAt = useRef<number>(Date.now());
+  const navigate = useNavigate();
 
   async function loadQueue(tagId: string | null) {
     setLoading(true);
@@ -53,6 +60,21 @@ export default function StudyPage() {
   }
 
   const current = queue[index];
+
+  // Carga el árbol de variantes de la tarjeta actual (si tiene).
+  const currentPositionId = current?.position.id;
+  useEffect(() => {
+    let cancelled = false;
+    setTree(null);
+    if (!currentPositionId) return;
+    void (async () => {
+      const variation = await getVariationByPosition(currentPositionId);
+      if (!cancelled) setTree(variation?.tree ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPositionId]);
 
   async function onRate(rating: ReviewRating) {
     if (!current) return;
@@ -136,11 +158,24 @@ export default function StudyPage() {
 
       {modeSelector}
 
-      <Chessground fen={position.fen} orientation={orientation} viewOnly />
-
-      <p className="text-center text-sm text-gray-300">
-        Juegan {position.side_to_move === "b" ? "negras" : "blancas"} · ¿cuál es la idea?
-      </p>
+      {tree ? (
+        <StudyPlayer
+          key={position.id}
+          rootFen={position.fen}
+          tree={tree}
+          orientation={orientation}
+          mode={playMode}
+          onModeChange={setPlayMode}
+          onAnalyze={(fen) => navigate("/analizar", { state: { fen } })}
+        />
+      ) : (
+        <>
+          <Chessground fen={position.fen} orientation={orientation} viewOnly />
+          <p className="text-center text-sm text-gray-300">
+            Juegan {position.side_to_move === "b" ? "negras" : "blancas"} · ¿cuál es la idea?
+          </p>
+        </>
+      )}
 
       {!revealed ? (
         <button

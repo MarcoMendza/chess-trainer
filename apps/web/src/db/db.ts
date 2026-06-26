@@ -9,6 +9,7 @@ import type {
   Review,
   SrsCard,
   Tag,
+  Variation,
 } from "./schema.ts";
 
 // Subclase tipada de Dexie. Los índices reflejan los del DDL (FASE-0 §3):
@@ -25,6 +26,7 @@ class ChessTrainerDB extends Dexie {
   decks!: EntityTable<Deck, "id">;
   srs_cards!: EntityTable<SrsCard, "id">;
   reviews!: EntityTable<Review, "id">;
+  variations!: EntityTable<Variation, "id">;
 
   constructor() {
     super("chess-trainer");
@@ -39,6 +41,11 @@ class ChessTrainerDB extends Dexie {
       decks: "id, deleted, updated_at",
       srs_cards: "id, due, deck_id, position_id, state, deleted, updated_at",
       reviews: "id, card_id, reviewed_at",
+    });
+    // v2 — Fase Variantes: SOLO agrega el store `variations`. Dexie conserva todos los
+    // stores de v1 sin tocarlos (migración aditiva: no se pierden torneos/tarjetas/tags).
+    this.version(2).stores({
+      variations: "id, position_id, deleted, updated_at",
     });
   }
 }

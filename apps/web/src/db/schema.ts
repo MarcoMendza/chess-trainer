@@ -92,6 +92,34 @@ export interface SrsCard extends SyncBase {
   last_review?: number;
 }
 
+/**
+ * Color de un nodo del árbol de variantes (semántica fija, ver docs/FASE-VARIANTES §2):
+ * main = línea principal (verde), sub = subvariante válida (amarillo),
+ * bad = error documentado (rojo), conditional = continuación condicional (azul).
+ * `null` = nodo sin color asignado. El rojo automático "fuera de árbol" no se almacena:
+ * se deriva al reproducir (una jugada que no matchea ningún hijo se pinta roja).
+ */
+export type NodeColor = "main" | "sub" | "bad" | "conditional";
+
+/**
+ * Nodo del árbol de variantes. La raíz representa el FEN de la tarjeta (move/color/note
+ * en null) y sus `children` son las jugadas candidatas. Cada nodo hijo guarda el SAN de
+ * la jugada y el FEN resultante (para navegar/pintar sin recomputar toda la línea).
+ */
+export interface VariationNode {
+  move: string | null; // SAN; null solo en la raíz
+  fen: string; // FEN tras la jugada (en la raíz, el FEN de la tarjeta)
+  color: NodeColor | null;
+  note: string | null;
+  children: VariationNode[];
+}
+
+/** Árbol de variantes de una posición (una `Variation` por `position_id`). */
+export interface Variation extends SyncBase {
+  position_id: string;
+  tree: VariationNode; // árbol completo (Dexie lo serializa como objeto)
+}
+
 /** 1 again | 2 hard | 3 good | 4 easy */
 export type ReviewRating = 1 | 2 | 3 | 4;
 

@@ -7,7 +7,10 @@ import type {
   Deck,
   Position,
   SrsCard,
+  Variation,
+  VariationNode,
 } from "../db/schema.ts";
+import { hasMoves } from "./variations.ts";
 
 export interface StudyCard {
   card: SrsCard;
@@ -48,6 +51,7 @@ export interface NewCardInput {
   sourceUrl?: string; // link del video (Chess Enigma, etc.)
   sourceTime?: string; // mm:ss para re-ver el momento
   tagIds?: string[]; // temas (M:N vía position_tags)
+  tree?: VariationNode; // árbol de variantes opcional (Fase Variantes)
 }
 
 /**
@@ -79,11 +83,13 @@ export async function createPositionWithCard(input: NewCardInput): Promise<SrsCa
     lapses: 0,
   };
   const tagIds = input.tagIds ?? [];
+  const tree = hasMoves(input.tree) ? input.tree! : null;
   await db.transaction(
     "rw",
     db.positions,
     db.srs_cards,
     db.position_tags,
+    db.variations,
     async () => {
       await db.positions.add(position);
       await db.srs_cards.add(card);
@@ -91,6 +97,14 @@ export async function createPositionWithCard(input: NewCardInput): Promise<SrsCa
         await db.position_tags.bulkAdd(
           tagIds.map((tag_id) => ({ position_id: position.id, tag_id })),
         );
+      }
+      if (tree) {
+        const variation: Variation = {
+          ...newRow(),
+          position_id: position.id,
+          tree,
+        };
+        await db.variations.add(variation);
       }
     },
   );

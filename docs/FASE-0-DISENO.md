@@ -132,9 +132,28 @@ CREATE TABLE reviews (
   elapsed_ms  INTEGER
 );
 
+-- ===== Variantes (Fase Variantes; añadido aditivo, NO cambia stores previos) =====
+-- Un árbol de variantes por posición. En SQLite (NAS) el árbol viaja como JSON en TEXT;
+-- en IndexedDB (cel) Dexie lo guarda como objeto. Misma forma lógica.
+CREATE TABLE variations (
+  id          TEXT PRIMARY KEY,            -- UUID v4
+  position_id TEXT NOT NULL REFERENCES positions(id),
+  tree        TEXT NOT NULL,               -- JSON del árbol (ver shape abajo)
+  created_at  INTEGER NOT NULL,
+  updated_at  INTEGER NOT NULL,
+  deleted     INTEGER NOT NULL DEFAULT 0
+);
+-- Shape del nodo (JSON):
+--   { "move": "Bd3"|null, "fen": "…", "color": "main"|"sub"|"bad"|"conditional"|null,
+--     "note": "texto"|null, "children": [ /* nodos */ ] }
+-- La raíz representa el FEN de la tarjeta (move/color/note = null); sus children son las
+-- jugadas candidatas. Colores: main=verde, sub=amarillo, bad=rojo, conditional=azul.
+-- El "rojo fuera de árbol" no se almacena: se deriva al reproducir.
+
 CREATE INDEX idx_cards_due  ON srs_cards(due);
 CREATE INDEX idx_pos_game   ON positions(game_id);
 CREATE INDEX idx_games_coll ON games(collection_id);
+CREATE INDEX idx_var_pos    ON variations(position_id);
 ```
 
 Scheduler: **FSRS** (lo que usa Anki hoy, mejor calibrado que SM-2; menos repasos para la misma
@@ -203,3 +222,5 @@ chess-trainer/
 3. Export a ChessBase: **un PGN por colección**.
 4. `games` incluye **round / board / time_control / my_color** para torneos OTB.
 5. Primer mazo de prueba: **100 finales (De la Villa)**.
+6. **Variantes** (Fase Variantes): árbol como JSON en tabla `variations`, una por `position_id`.
+   Migración aditiva (Dexie v2: solo añade el store, conserva los demás). Detalle: `docs/FASE-VARIANTES.md`.
