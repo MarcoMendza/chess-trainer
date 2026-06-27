@@ -196,13 +196,14 @@ function VariationEditor({
   );
   return (
     <div className="space-y-3">
-      <div className="cg-mini mx-auto w-56">
+      <div className="mx-auto w-56">
         <Chessground
           fen={variations.currentFen}
           orientation={orientation}
           turnColor={turnColor}
           dests={variations.dests}
           lastMove={variations.lastMove}
+          coordinates={false}
           onMove={variations.play}
         />
       </div>

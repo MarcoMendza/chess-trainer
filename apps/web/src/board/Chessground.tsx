@@ -19,6 +19,8 @@ export interface BoardProps {
   lastMove?: [Key, Key];
   /** Formas dibujadas por la app (p. ej. flecha de mejor jugada del motor). */
   autoShapes?: DrawShape[];
+  /** Mostrar coordenadas a-h / 1-8. Apagar en tableros chicos donde estorban. */
+  coordinates?: boolean;
   /** Callback al soltar una pieza en destino legal. */
   onMove?: (orig: Key, dest: Key) => void;
 }
@@ -35,6 +37,7 @@ export default function Chessground({
   dests,
   lastMove,
   autoShapes,
+  coordinates = true,
   onMove,
 }: BoardProps) {
   const elRef = useRef<HTMLDivElement>(null);
@@ -46,7 +49,7 @@ export default function Chessground({
   // Crear / destruir la instancia.
   useEffect(() => {
     if (!elRef.current) return;
-    const api = createChessground(elRef.current, { coordinates: true });
+    const api = createChessground(elRef.current, { coordinates });
     apiRef.current = api;
     return () => {
       api.destroy();
@@ -64,6 +67,7 @@ export default function Chessground({
       viewOnly,
       turnColor,
       lastMove,
+      coordinates,
       movable: {
         free: false,
         color: viewOnly ? undefined : turnColor,
@@ -77,7 +81,7 @@ export default function Chessground({
       drawable: { enabled: true, autoShapes: autoShapes ?? [] },
     };
     api.set(config);
-  }, [fen, orientation, viewOnly, turnColor, dests, lastMove, autoShapes]);
+  }, [fen, orientation, viewOnly, turnColor, dests, lastMove, autoShapes, coordinates]);
 
   // Contenedor cuadrado responsivo; chessground monta dentro del div interno.
   return (
