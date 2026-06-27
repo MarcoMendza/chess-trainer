@@ -137,6 +137,46 @@ export default function StudyPlayer({
     setPlayed([]);
   }
 
+  // Navegación paso a paso por el árbol (al revisar con "Ver árbol"): reconstruye
+  // las jugadas reproducidas a partir de una ruta del árbol, manteniendo el feedback
+  // de color de cada nodo y el resaltado de la última jugada.
+  function pathToPlayed(path: NodePath): PlayedMove[] {
+    const out: PlayedMove[] = [];
+    let node: VariationNode = tree;
+    let fen = rootFen;
+    for (const idx of path) {
+      const child = node.children[idx];
+      if (!child || !child.move) break;
+      let mv;
+      try {
+        mv = new Chess(fen).move(child.move);
+      } catch {
+        break;
+      }
+      out.push({
+        san: child.move,
+        fen: child.fen,
+        from: mv.from as Key,
+        to: mv.to as Key,
+        feedback: child.color,
+      });
+      fen = child.fen;
+      node = child;
+    }
+    return out;
+  }
+
+  // Saltar a un nodo del árbol (tocándolo) o avanzar/retroceder una jugada.
+  function goToPath(path: NodePath) {
+    setPlayed(pathToPlayed(path));
+  }
+  // ¿Se puede avanzar? Solo si seguimos en el árbol y el nodo tiene continuación.
+  const canNext = treePath !== null && (treeNode?.children.length ?? 0) > 0;
+  function goNext() {
+    if (treePath === null || !treeNode || treeNode.children.length === 0) return;
+    goToPath([...treePath, 0]); // sigue la línea principal (primer hijo)
+  }
+
   const noteToShow = treeNode?.note ?? null;
   const strictDone = mode === "strict" && treeNode && dests.size === 0;
 
@@ -225,7 +265,40 @@ export default function StudyPlayer({
       </div>
 
       {showTree && (
-        <VariationTree tree={tree} selectedPath={treePath ?? undefined} />
+        <div className="space-y-2">
+          {/* Navegación paso a paso por la línea revelada. */}
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={restart}
+              disabled={played.length === 0}
+              className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
+            >
+              ⏮ Inicio
+            </button>
+            <button
+              type="button"
+              onClick={undo}
+              disabled={played.length === 0}
+              className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
+            >
+              ◀ Anterior
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              disabled={!canNext}
+              className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
+            >
+              Siguiente ▶
+            </button>
+          </div>
+          <VariationTree
+            tree={tree}
+            selectedPath={treePath ?? undefined}
+            onSelect={goToPath}
+          />
+        </div>
       )}
     </div>
   );
