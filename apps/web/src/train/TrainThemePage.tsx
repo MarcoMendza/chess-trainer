@@ -1,18 +1,24 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import Chessground from "../board/Chessground.tsx";
 import { db } from "../db/db.ts";
 import { positionsByTag } from "../tags/repo.ts";
 import { videoUrlAt } from "../lib/video.ts";
-import type { Position, Tag } from "../db/schema.ts";
+import { getVariationByPosition } from "../study/variations.ts";
+import StudyPlayer, { type PlayMode } from "../study/StudyPlayer.tsx";
+import type { Position, Tag, VariationNode } from "../db/schema.ts";
 
 export default function TrainThemePage() {
   const { tagId } = useParams<{ tagId: string }>();
+  const navigate = useNavigate();
   const [tag, setTag] = useState<Tag | undefined>();
   const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
+  // Árbol de variantes de la posición actual (null = sin árbol). Modo de juego por sesión.
+  const [tree, setTree] = useState<VariationNode | null>(null);
+  const [playMode, setPlayMode] = useState<PlayMode>("color");
 
   useEffect(() => {
     if (!tagId) return;
@@ -23,9 +29,24 @@ export default function TrainThemePage() {
     })();
   }, [tagId]);
 
-  if (loading) return <p className="text-sm text-gray-400">Cargando…</p>;
-
   const current = positions[index];
+
+  // Carga el árbol de variantes de la posición actual (si tiene), igual que Estudiar.
+  const currentId = current?.id;
+  useEffect(() => {
+    let cancelled = false;
+    setTree(null);
+    if (!currentId) return;
+    void (async () => {
+      const variation = await getVariationByPosition(currentId);
+      if (!cancelled) setTree(variation?.tree ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentId]);
+
+  if (loading) return <p className="text-sm text-gray-400">Cargando…</p>;
 
   function go(delta: number) {
     setRevealed(false);
@@ -52,15 +73,29 @@ export default function TrainThemePage() {
             </span>
           </div>
 
-          <Chessground
-            fen={current.fen}
-            orientation={current.side_to_move === "b" ? "black" : "white"}
-            viewOnly
-          />
+          {tree ? (
+            <StudyPlayer
+              key={current.id}
+              rootFen={current.fen}
+              tree={tree}
+              orientation={current.side_to_move === "b" ? "black" : "white"}
+              mode={playMode}
+              onModeChange={setPlayMode}
+              onAnalyze={(fen) => navigate("/analizar", { state: { fen } })}
+            />
+          ) : (
+            <>
+              <Chessground
+                fen={current.fen}
+                orientation={current.side_to_move === "b" ? "black" : "white"}
+                viewOnly
+              />
 
-          <p className="text-center text-sm text-gray-300">
-            Juegan {current.side_to_move === "b" ? "negras" : "blancas"} · ¿cuál es la idea?
-          </p>
+              <p className="text-center text-sm text-gray-300">
+                Juegan {current.side_to_move === "b" ? "negras" : "blancas"} · ¿cuál es la idea?
+              </p>
+            </>
+          )}
 
           {!revealed ? (
             <button
