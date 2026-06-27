@@ -77,8 +77,10 @@ export function useVariationTree(rootFen: string) {
     [path],
   );
   const setNote = useCallback(
+    // No recortar mientras se escribe: `trim()` por tecleo se comía el espacio final
+    // (quedaba siempre como trailing) e impedía escribir espacios. Solo vacío → null.
     (note: string) =>
-      setTree((prev) => setNoteAtPath(prev, path, note.trim() || null)),
+      setTree((prev) => setNoteAtPath(prev, path, note === "" ? null : note)),
     [path],
   );
   const deleteCurrent = useCallback(() => {
