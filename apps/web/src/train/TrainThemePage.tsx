@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Chessground from "../board/Chessground.tsx";
 import { db } from "../db/db.ts";
-import { positionsByTag } from "../tags/repo.ts";
+import { positionsBySubtree } from "../tags/repo.ts";
 import { videoUrlAt } from "../lib/video.ts";
 import { getVariationByPosition } from "../study/variations.ts";
 import StudyPlayer, { type PlayMode } from "../study/StudyPlayer.tsx";
@@ -24,7 +24,7 @@ export default function TrainThemePage() {
     if (!tagId) return;
     void (async () => {
       setTag(await db.tags.get(tagId));
-      setPositions(await positionsByTag(tagId));
+      setPositions(await positionsBySubtree(tagId));
       setLoading(false);
     })();
   }, [tagId]);

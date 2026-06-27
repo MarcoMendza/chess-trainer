@@ -61,6 +61,7 @@ export interface Tag {
   id: string;
   name: string; // único
   category?: TagCategory;
+  parent_id?: string | null; // null/undefined = raíz (cuelga de su categoría)
 }
 
 export interface PositionTag {

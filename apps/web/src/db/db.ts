@@ -47,6 +47,23 @@ class ChessTrainerDB extends Dexie {
     this.version(2).stores({
       variations: "id, position_id, deleted, updated_at",
     });
+    // v3 — Fase Jerarquía: tags anidados. SOLO añade el índice `parent_id` al store
+    // `tags` (migración aditiva: NO recrea stores, NO pierde datos). El upgrade rellena
+    // parent_id = null en los tags existentes → todos quedan como raíz.
+    // Nota: IndexedDB no indexa null/undefined, así que las raíces se calculan en memoria
+    // (parent_id == null); el índice `parent_id` se usa solo para buscar hijos de un nodo.
+    this.version(3)
+      .stores({
+        tags: "id, &name, category, parent_id",
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table("tags")
+          .toCollection()
+          .modify((tag: { parent_id?: string | null }) => {
+            if (tag.parent_id === undefined) tag.parent_id = null;
+          });
+      });
   }
 }
 

@@ -1,6 +1,10 @@
 import { db } from "../db/db.ts";
 import { newRow, now } from "../db/helpers.ts";
-import { tagIdsByPosition } from "../tags/repo.ts";
+import {
+  descendantTagIds,
+  subtreeCounts,
+  tagIdsByPosition,
+} from "../tags/repo.ts";
 import type {
   CardType,
   Color,
@@ -128,7 +132,7 @@ export async function saveCard(input: SaveCardInput): Promise<SrsCard> {
 // ===== Consultas de repaso =====
 
 export interface StudyOptions {
-  /** Acotar a un tema (modo bloque). Si se omite, entran todas las vencidas. */
+  /** Acotar a un tema (modo bloque): incluye todo su subárbol. Si se omite, entran todas. */
   tagId?: string;
   /** Mezclar temas a propósito (default en "todas"). Ignorado si hay tagId. */
   interleave?: boolean;
@@ -181,20 +185,24 @@ export async function getDueStudyCards(
   for (const item of base) item.tagIds = tagMap.get(item.position.id) ?? [];
 
   if (tagId) {
-    return base.filter((b) => b.tagIds.includes(tagId)).slice(0, limit);
+    // Subárbol: el nodo elegido junta las tarjetas de todos sus descendientes.
+    const subtree = new Set(await descendantTagIds(tagId));
+    return base
+      .filter((b) => b.tagIds.some((t) => subtree.has(t)))
+      .slice(0, limit);
   }
   const ordered = interleave ? interleaveByTag(base) : base;
   return ordered.slice(0, limit);
 }
 
-/** Conteo de tarjetas vencidas por tag (para el selector de modo en Estudiar). */
+/**
+ * Conteo de tarjetas vencidas por nodo, contando todo su subárbol (para los chips de
+ * filtro en Estudiar): elegir un padre trae las vencidas de sus descendientes.
+ */
 export async function getDueTagCounts(): Promise<Map<string, number>> {
   const due = await getDueStudyCards({ interleave: false, limit: Infinity });
-  const counts = new Map<string, number>();
-  for (const c of due) {
-    for (const t of c.tagIds) counts.set(t, (counts.get(t) ?? 0) + 1);
-  }
-  return counts;
+  const tags = await db.tags.toArray();
+  return subtreeCounts(tags, due);
 }
 
 /** Cuántas tarjetas están vencidas ahora. */

@@ -83,7 +83,8 @@ CREATE TABLE positions (
 CREATE TABLE tags (
   id        TEXT PRIMARY KEY,
   name      TEXT NOT NULL UNIQUE,          -- "Clavada", "Profilaxis", "Peones doblados", "f2-f7"
-  category  TEXT                           -- finales | estructura | tactica | apertura | medio
+  category  TEXT,                          -- finales | estructura | tactica | apertura | medio
+  parent_id TEXT REFERENCES tags(id)       -- Fase Jerarquía: árbol de temas (NULL = raíz; hereda categoría del padre). Tope 4 niveles, sin ciclos.
 );
 CREATE TABLE position_tags (
   position_id TEXT NOT NULL REFERENCES positions(id),
