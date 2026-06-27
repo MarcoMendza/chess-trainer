@@ -19,3 +19,17 @@ body {
   margin: 0;
   -webkit-tap-highlight-color: transparent;
 }
+
+/*
+ * Tableros pequeños (p. ej. el preview/editor de SaveCardSheet).
+ * Los offsets en px de las coordenadas de chessground están calibrados para
+ * tableros grandes; a 160-224px superan media casilla y empujan las files (a-h)
+ * y ranks (1-8) fuera del tablero. Centrarlas en su casilla las mantiene dentro.
+ */
+.cg-mini .cg-wrap coords.ranks {
+  top: 0;
+}
+.cg-mini .cg-wrap coords.files {
+  left: 0;
+  bottom: 0;
+}

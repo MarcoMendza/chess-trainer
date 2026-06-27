@@ -83,7 +83,7 @@ export default function SaveCardSheet({
           </button>
         </div>
 
-        <div className="mx-auto w-40">
+        <div className="cg-mini mx-auto w-40">
           <Chessground fen={fen} orientation={orientation} viewOnly />
         </div>
 
@@ -196,7 +196,7 @@ function VariationEditor({
   );
   return (
     <div className="space-y-3">
-      <div className="mx-auto w-56">
+      <div className="cg-mini mx-auto w-56">
         <Chessground
           fen={variations.currentFen}
           orientation={orientation}
