@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Tag, TagCategory } from "../db/schema.ts";
-import { getOrCreateTag, listTags, validParentIdsForNew } from "./repo.ts";
+import { childrenOf, getOrCreateTag, listTags, validParentIdsForNew } from "./repo.ts";
 import { CATEGORIES, CATEGORY_LABEL, categoryChip } from "./categories.ts";
 
 interface TagPickerProps {
@@ -54,15 +54,22 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
     add(tag.id);
   }
 
-  // Padres válidos para un tag nuevo (profundidad ≤ 3), en orden alfabético.
-  const parentOptions = useMemo(
-    () =>
-      validParentIdsForNew(tags)
-        .map((id) => tags.find((t) => t.id === id))
-        .filter((t): t is Tag => !!t)
-        .sort((a, b) => a.name.localeCompare(b.name, "es")),
-    [tags],
-  );
+  // Padres válidos para un tag nuevo, acotados a la categoría que se está creando
+  // (al elegir padre se hereda su categoría, así que solo tienen sentido los de la
+  // misma categoría) y aplanados en orden jerárquico con su profundidad para indentar.
+  const parentOptions = useMemo(() => {
+    const valid = new Set(validParentIdsForNew(tags));
+    const out: { tag: Tag; depth: number }[] = [];
+    const walk = (parentId: string | null, depth: number) => {
+      for (const t of childrenOf(tags, parentId)) {
+        if (t.category !== newCategory) continue; // categoría = la de la raíz del subárbol
+        if (valid.has(t.id)) out.push({ tag: t, depth });
+        walk(t.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+    return out;
+  }, [tags, newCategory]);
 
   return (
     <div className="space-y-2">
@@ -121,9 +128,10 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
                     className="rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs"
                   >
                     <option value="">— Raíz —</option>
-                    {parentOptions.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
+                    {parentOptions.map(({ tag, depth }) => (
+                      <option key={tag.id} value={tag.id}>
+                        {depth > 0 ? `${"  ".repeat(depth)}└ ` : ""}
+                        {tag.name}
                       </option>
                     ))}
                   </select>
