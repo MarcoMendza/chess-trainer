@@ -97,35 +97,39 @@ export default function TrainThemePage() {
             </>
           )}
 
-          {!revealed ? (
-            <button
-              type="button"
-              onClick={() => setRevealed(true)}
-              className="w-full rounded-lg bg-gray-700 px-4 py-3 text-sm font-medium active:bg-gray-600"
-            >
-              Revelar idea
-            </button>
-          ) : (
-            <div className="space-y-3 rounded-lg border border-gray-700 bg-gray-800 p-4">
-              {current.idea && <p className="text-sm">{current.idea}</p>}
-              {current.eval_note && (
-                <p className="text-xs text-gray-400">{current.eval_note}</p>
-              )}
-              {!current.idea && !current.eval_note && (
-                <p className="text-sm text-gray-400">(Sin nota para esta posición.)</p>
-              )}
-              {current.source_url && (
-                <a
-                  href={videoUrlAt(current.source_url, current.source_time)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white active:bg-red-700"
-                >
-                  ▶ Ver video{current.source_time ? ` · ${current.source_time}` : ""}
-                </a>
-              )}
-            </div>
-          )}
+          {/* Altura reservada: al revelar/ocultar y al cambiar de tarjeta los botones
+              de navegación de abajo no brincan (la idea suele caber en este alto). */}
+          <div className="min-h-[7rem]">
+            {!revealed ? (
+              <button
+                type="button"
+                onClick={() => setRevealed(true)}
+                className="w-full rounded-lg bg-gray-700 px-4 py-3 text-sm font-medium active:bg-gray-600"
+              >
+                Revelar idea
+              </button>
+            ) : (
+              <div className="space-y-3 rounded-lg border border-gray-700 bg-gray-800 p-4">
+                {current.idea && <p className="text-sm">{current.idea}</p>}
+                {current.eval_note && (
+                  <p className="text-xs text-gray-400">{current.eval_note}</p>
+                )}
+                {!current.idea && !current.eval_note && (
+                  <p className="text-sm text-gray-400">(Sin nota para esta posición.)</p>
+                )}
+                {current.source_url && (
+                  <a
+                    href={videoUrlAt(current.source_url, current.source_time)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white active:bg-red-700"
+                  >
+                    ▶ Ver video{current.source_time ? ` · ${current.source_time}` : ""}
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="flex items-center justify-between gap-2">
             <button
