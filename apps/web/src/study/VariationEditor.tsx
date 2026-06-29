@@ -55,6 +55,14 @@ export default function VariationEditor({
         </button>
         <button
           type="button"
+          onClick={variations.forward}
+          disabled={!variations.canForward}
+          className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
+        >
+          Siguiente ▶
+        </button>
+        <button
+          type="button"
           onClick={variations.reset}
           disabled={variations.atRoot}
           className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
