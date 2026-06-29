@@ -121,6 +121,19 @@ export interface Variation extends SyncBase {
   tree: VariationNode; // árbol completo (Dexie lo serializa como objeto)
 }
 
+/**
+ * Settings de la app (registro singleton, `id = "app"`). Key-value simple para
+ * preferencias locales del dispositivo. Hoy solo guarda el cupo de tarjetas nuevas
+ * por día de Estudiar (ver docs/FASE-ESTUDIAR.md §3). Aditivo: no sincroniza.
+ */
+export interface AppSettings {
+  id: "app";
+  newPerDayDefault: number; // preset recordado para el prompt "¿cuántas nuevas hoy?"
+  studyDay: string; // "YYYY-MM-DD" local al que pertenecen los contadores de abajo
+  newGoalToday: number; // nuevas elegidas para `studyDay`
+  newDoneToday: number; // nuevas ya introducidas (calificadas) en `studyDay`
+}
+
 /** 1 again | 2 hard | 3 good | 4 easy */
 export type ReviewRating = 1 | 2 | 3 | 4;
 

@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import type {
+  AppSettings,
   Collection,
   Deck,
   Game,
@@ -27,6 +28,7 @@ class ChessTrainerDB extends Dexie {
   srs_cards!: EntityTable<SrsCard, "id">;
   reviews!: EntityTable<Review, "id">;
   variations!: EntityTable<Variation, "id">;
+  settings!: EntityTable<AppSettings, "id">;
 
   constructor() {
     super("chess-trainer");
@@ -64,6 +66,11 @@ class ChessTrainerDB extends Dexie {
             if (tag.parent_id === undefined) tag.parent_id = null;
           });
       });
+    // v4 — Fase Estudiar: SOLO agrega el store `settings` (registro singleton para el
+    // cupo de nuevas/día). Migración aditiva: no recrea stores, no pierde datos.
+    this.version(4).stores({
+      settings: "id",
+    });
   }
 }
 
