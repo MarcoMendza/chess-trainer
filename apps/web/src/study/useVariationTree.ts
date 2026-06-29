@@ -71,6 +71,14 @@ export function useVariationTree(rootFen: string) {
 
   const goToPath = useCallback((p: NodePath) => setPath(p), []);
   const back = useCallback(() => setPath((p) => p.slice(0, -1)), []);
+  // Avanza por la línea principal: el primer hijo del nodo actual (índice 0).
+  const canForward = current.children.length > 0;
+  const forward = useCallback(() => {
+    setPath((p) => {
+      const node = nodeAtPath(tree, p);
+      return node && node.children.length > 0 ? [...p, 0] : p;
+    });
+  }, [tree]);
   const reset = useCallback(() => setPath([]), []);
 
   const setColor = useCallback(
@@ -108,6 +116,8 @@ export function useVariationTree(rootFen: string) {
     play,
     goToPath,
     back,
+    forward,
+    canForward,
     reset,
     setColor,
     setNote,

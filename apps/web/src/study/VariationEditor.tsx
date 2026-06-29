@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import type { DrawShape } from "chessground/draw";
 import Chessground from "../board/Chessground.tsx";
 import { toColor } from "../board/useChess.ts";
 import VariationTree from "./VariationTree.tsx";
@@ -23,26 +25,41 @@ export const COLOR_OPTIONS: Array<{
 export default function VariationEditor({
   variations,
   orientation,
+  autoShapes,
+  evalBar,
 }: {
   variations: ReturnType<typeof useVariationTree>;
   orientation: "white" | "black";
+  /** Flecha(s) de mejor jugada del motor (opcional; solo se usa en Anotar). */
+  autoShapes?: DrawShape[];
+  /** Barra de evaluación a la izquierda del tablero (opcional; solo en Anotar). */
+  evalBar?: ReactNode;
 }) {
   const turnColor = toColor(
     variations.currentFen.split(" ")[1] === "b" ? "b" : "w",
   );
+  const board = (
+    <Chessground
+      fen={variations.currentFen}
+      orientation={orientation}
+      turnColor={turnColor}
+      dests={variations.dests}
+      lastMove={variations.lastMove}
+      autoShapes={autoShapes}
+      coordinates={false}
+      onMove={variations.play}
+    />
+  );
   return (
     <div className="space-y-3">
-      <div className="mx-auto w-56">
-        <Chessground
-          fen={variations.currentFen}
-          orientation={orientation}
-          turnColor={turnColor}
-          dests={variations.dests}
-          lastMove={variations.lastMove}
-          coordinates={false}
-          onMove={variations.play}
-        />
-      </div>
+      {evalBar ? (
+        <div className="mx-auto flex w-64 gap-2">
+          {evalBar}
+          <div className="flex-1">{board}</div>
+        </div>
+      ) : (
+        <div className="mx-auto w-56">{board}</div>
+      )}
 
       <div className="flex items-center justify-between gap-2">
         <button
@@ -52,6 +69,14 @@ export default function VariationEditor({
           className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
         >
           ◀ Atrás
+        </button>
+        <button
+          type="button"
+          onClick={variations.forward}
+          disabled={!variations.canForward}
+          className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700 disabled:opacity-30"
+        >
+          Siguiente ▶
         </button>
         <button
           type="button"
