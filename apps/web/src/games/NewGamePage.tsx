@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import type { Key } from "chessground/types";
+import type { DrawShape } from "chessground/draw";
 import { useVariationTree } from "../study/useVariationTree.ts";
 import VariationEditor from "../study/VariationEditor.tsx";
 import { hasMoves } from "../study/variations.ts";
+import { uciLineToSan } from "../board/useChess.ts";
+import { useEngine } from "../engine/useEngine.ts";
+import EvalBar, { formatScore } from "../analysis/EvalBar.tsx";
 import { getCollection, listGames } from "./repo.ts";
 import SaveGameSheet from "./SaveGameSheet.tsx";
 
@@ -16,12 +21,38 @@ const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
  */
 export default function NewGamePage() {
   const { collectionId } = useParams<{ collectionId: string }>();
-  const navigate = useNavigate();
   const variations = useVariationTree(START_FEN);
   const [orientation, setOrientation] = useState<"white" | "black">("white");
   const [collectionName, setCollectionName] = useState("");
   const [defaultTimeControl, setDefaultTimeControl] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
+
+  // Motor embebido (reusa el on-device): analiza la posición del nodo actual.
+  const { ready, lines, analyze, stop, multipv, setMultipv } = useEngine();
+  const [analyzing, setAnalyzing] = useState(false);
+  const currentFen = variations.currentFen;
+
+  // Relanza el análisis al cambiar de posición (el motor hace `stop` antes del `go`).
+  useEffect(() => {
+    if (analyzing && ready) analyze(currentFen);
+  }, [analyzing, ready, currentFen, analyze]);
+
+  // Al apagar, detén la búsqueda y limpia las líneas.
+  useEffect(() => {
+    if (!analyzing) stop();
+  }, [analyzing, stop]);
+
+  const best = lines[0];
+  const autoShapes = useMemo<DrawShape[]>(() => {
+    const uci = best?.pvUci[0];
+    if (!analyzing || !uci) return [];
+    return [{ orig: uci.slice(0, 2) as Key, dest: uci.slice(2, 4) as Key, brush: "green" }];
+  }, [best, analyzing]);
+
+  function onMultipv(n: number) {
+    setMultipv(n);
+    if (analyzing && ready) analyze(currentFen);
+  }
 
   // Ritmo heredado del torneo: prefill desde el último juego de la colección.
   useEffect(() => {
@@ -66,7 +97,12 @@ export default function NewGamePage() {
         </button>
       </div>
 
-      <VariationEditor variations={variations} orientation={orientation} />
+      <VariationEditor
+        variations={variations}
+        orientation={orientation}
+        autoShapes={analyzing ? autoShapes : undefined}
+        evalBar={analyzing ? <EvalBar best={best} /> : undefined}
+      />
 
       <div className="flex items-center justify-between gap-2">
         <button
@@ -79,14 +115,51 @@ export default function NewGamePage() {
         </button>
         <button
           type="button"
-          onClick={() =>
-            navigate("/analizar", { state: { fen: variations.currentFen } })
-          }
-          className="flex-1 rounded-lg border border-gray-600 px-3 py-2 text-xs active:bg-gray-700"
+          onClick={() => setAnalyzing((v) => !v)}
+          disabled={!ready}
+          className={`flex-1 rounded-lg border px-3 py-2 text-xs disabled:opacity-40 ${
+            analyzing
+              ? "border-amber-600 text-amber-300 active:bg-amber-900/40"
+              : "border-gray-600 active:bg-gray-700"
+          }`}
         >
-          🔍 Analizar con motor
+          {ready ? "🔍 Analizar con motor" : "Cargando motor…"}
         </button>
       </div>
+
+      {/* Panel del motor embebido (líneas MultiPV + selector). */}
+      {analyzing && (
+        <div className="space-y-2 rounded-lg border border-gray-700 bg-gray-800/60 p-2">
+          <div className="space-y-1">
+            {lines.length === 0 ? (
+              <p className="text-xs text-gray-500">Pensando…</p>
+            ) : (
+              lines.map((l) => (
+                <div key={l.multipv} className="flex gap-2 text-xs">
+                  <span className="w-12 shrink-0 font-mono tabular-nums text-emerald-400">
+                    {formatScore(l)}
+                  </span>
+                  <span className="truncate text-gray-300">
+                    {uciLineToSan(currentFen, l.pvUci).join(" ")}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+          <label className="flex items-center gap-2 text-xs text-gray-300">
+            Líneas
+            <select
+              value={multipv}
+              onChange={(e) => onMultipv(Number(e.target.value))}
+              className="rounded-lg border border-gray-600 bg-gray-800 px-2 py-1 text-xs"
+            >
+              <option value={1}>1</option>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+            </select>
+          </label>
+        </div>
+      )}
 
       <button
         type="button"
