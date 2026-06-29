@@ -12,6 +12,7 @@ import {
   setNoteAtPath,
   type NodePath,
 } from "./variations.ts";
+import { promoteAtPath } from "../games/pgnTree.ts";
 
 /**
  * Estado del árbol de variantes para el editor (SaveCardSheet).
@@ -88,6 +89,14 @@ export function useVariationTree(rootFen: string) {
     setPath((p) => p.slice(0, -1));
   }, [path]);
 
+  // Promueve la rama actual a principal en su punto de divergencia (estilo ChessBase).
+  // El nodo pasa al índice 0 entre sus hermanos; reapuntamos la ruta a esa posición.
+  const promote = useCallback(() => {
+    if (path.length === 0) return;
+    setTree((prev) => promoteAtPath(prev, path));
+    setPath((p) => [...p.slice(0, -1), 0]);
+  }, [path]);
+
   return {
     tree,
     path,
@@ -103,5 +112,6 @@ export function useVariationTree(rootFen: string) {
     setColor,
     setNote,
     deleteCurrent,
+    promote,
   };
 }
