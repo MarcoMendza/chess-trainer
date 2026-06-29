@@ -130,6 +130,18 @@ export default function NewGamePage() {
       {/* Panel del motor embebido (líneas MultiPV + selector). */}
       {analyzing && (
         <div className="space-y-2 rounded-lg border border-gray-700 bg-gray-800/60 p-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Motor
+            </span>
+            <button
+              type="button"
+              onClick={() => setAnalyzing(false)}
+              className="rounded-lg border border-amber-700 px-3 py-1 text-xs text-amber-300 active:bg-amber-900/40"
+            >
+              ⏸ Detener motor
+            </button>
+          </div>
           <div className="space-y-1">
             {lines.length === 0 ? (
               <p className="text-xs text-gray-500">Pensando…</p>
