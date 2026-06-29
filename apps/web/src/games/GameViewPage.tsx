@@ -4,27 +4,36 @@ import { Chess } from "chess.js";
 import type { Key } from "chessground/types";
 import Chessground from "../board/Chessground.tsx";
 import { getGame } from "./repo.ts";
+import { pgnToTree } from "./pgnTree.ts";
+import { nodeAtPath, type NodePath } from "../study/variations.ts";
+import VariationTree from "../study/VariationTree.tsx";
 import TagPicker from "../tags/TagPicker.tsx";
 import { setGameTags, tagsForGame } from "../tags/repo.ts";
-import type { Game } from "../db/schema.ts";
+import type { Game, VariationNode } from "../db/schema.ts";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
-interface ReplayData {
-  fens: string[];
-  sans: string[];
-  moves: Array<[Key, Key]>;
+/** FEN inicial del PGN: header [FEN "…"] si la partida arranca de una posición, o inicial. */
+function startFenOf(pgn: string): string {
+  const m = pgn.match(/\[FEN\s+"([^"]+)"\]/);
+  return m ? m[1] : START_FEN;
 }
 
-function buildReplay(pgn: string): ReplayData {
-  const chess = new Chess();
-  chess.loadPgn(pgn);
-  const history = chess.history({ verbose: true });
-  const startFen = history[0]?.before ?? START_FEN;
-  const fens = [startFen, ...history.map((m) => m.after)];
-  const sans = history.map((m) => m.san);
-  const moves = history.map((m) => [m.from as Key, m.to as Key] as [Key, Key]);
-  return { fens, sans, moves };
+/** Casillas de la jugada que llevó al nodo en `path` (para resaltar en el tablero). */
+function moveSquares(
+  root: VariationNode,
+  path: NodePath,
+): [Key, Key] | undefined {
+  if (path.length === 0) return undefined;
+  const node = nodeAtPath(root, path);
+  const parent = nodeAtPath(root, path.slice(0, -1));
+  if (!node?.move || !parent) return undefined;
+  try {
+    const mv = new Chess(parent.fen).move(node.move);
+    return [mv.from as Key, mv.to as Key];
+  } catch {
+    return undefined;
+  }
 }
 
 export default function GameViewPage() {
@@ -32,8 +41,8 @@ export default function GameViewPage() {
   const navigate = useNavigate();
   const [game, setGame] = useState<Game | undefined>();
   const [loading, setLoading] = useState(true);
-  const [ply, setPly] = useState(0);
   const [gameTagIds, setGameTagIds] = useState<string[]>([]);
+  const [path, setPath] = useState<NodePath>([]);
 
   useEffect(() => {
     if (!gameId) return;
@@ -49,10 +58,13 @@ export default function GameViewPage() {
     if (gameId) void setGameTags(gameId, ids);
   }
 
-  const replay = useMemo<ReplayData | null>(() => {
+  // Re-lee el PGN como árbol (con sidelines y comentarios). Si el parseo no da jugadas,
+  // `root` queda sin hijos y mostramos el aviso de PGN ilegible.
+  const parsed = useMemo(() => {
     if (!game) return null;
     try {
-      return buildReplay(game.pgn);
+      const startFen = startFenOf(game.pgn);
+      return pgnToTree(game.pgn, startFen);
     } catch {
       return null;
     }
@@ -60,6 +72,129 @@ export default function GameViewPage() {
 
   if (loading) return <p className="text-sm text-gray-400">Cargando…</p>;
   if (!game) return <p className="text-sm text-gray-400">Partida no encontrada.</p>;
+  // Fallback: si el árbol no trae jugadas, reproducción lineal con chess.js (no regresa
+  // el comportamiento previo de las partidas pegadas).
+  if (!parsed || parsed.root.children.length === 0)
+    return <LinearReplay game={game} gameTagIds={gameTagIds} onTagsChange={onTagsChange} />;
+
+  const { root, generalNote } = parsed;
+  const node = nodeAtPath(root, path) ?? root;
+  const orientation = game.my_color === "b" ? "black" : "white";
+  const lastMove = moveSquares(root, path);
+  const canPrev = path.length > 0;
+  const canNext = node.children.length > 0;
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <Link
+          to={game.collection_id ? `/torneos/${game.collection_id}` : "/torneos"}
+          className="text-sm text-gray-400"
+        >
+          ← Volver
+        </Link>
+        <h1 className="mt-1 text-lg font-semibold">
+          {(game.white || "?") + " – " + (game.black || "?")}{" "}
+          <span className="text-gray-400">{game.result || "*"}</span>
+        </h1>
+      </div>
+
+      {generalNote && (
+        <p className="rounded-lg border border-gray-700 bg-gray-800 p-2 text-sm italic text-gray-300">
+          {generalNote}
+        </p>
+      )}
+
+      <Chessground
+        fen={node.fen}
+        orientation={orientation}
+        viewOnly
+        lastMove={lastMove}
+      />
+
+      {node.note && (
+        <p className="rounded-lg border border-gray-700 bg-gray-800 p-2 text-sm italic text-gray-300">
+          {node.note}
+        </p>
+      )}
+
+      <div className="flex items-center justify-between gap-2">
+        <NavButton onClick={() => setPath([])} disabled={!canPrev} label="⏮" />
+        <NavButton
+          onClick={() => setPath((p) => p.slice(0, -1))}
+          disabled={!canPrev}
+          label="◀"
+        />
+        <span className="text-sm text-gray-400">
+          {node.move ? node.move : "Inicio"}
+        </span>
+        <NavButton
+          onClick={() => setPath((p) => [...p, 0])}
+          disabled={!canNext}
+          label="▶"
+        />
+      </div>
+
+      {/* Árbol completo con variantes; tocar una jugada salta a esa posición. */}
+      <VariationTree tree={root} selectedPath={path} onSelect={setPath} />
+
+      <div>
+        <h2 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+          Temas
+        </h2>
+        <TagPicker value={gameTagIds} onChange={onTagsChange} />
+      </div>
+
+      <button
+        type="button"
+        onClick={() => navigate("/analizar", { state: { fen: node.fen } })}
+        className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700"
+      >
+        Analizar con el motor
+      </button>
+    </div>
+  );
+}
+
+// ===== Fallback lineal (chess.js) para PGN que el árbol no pudo reconstruir =====
+
+interface ReplayData {
+  fens: string[];
+  sans: string[];
+  moves: Array<[Key, Key]>;
+}
+
+function buildReplay(pgn: string): ReplayData {
+  const chess = new Chess();
+  chess.loadPgn(pgn);
+  const history = chess.history({ verbose: true });
+  const startFen = history[0]?.before ?? START_FEN;
+  return {
+    fens: [startFen, ...history.map((m) => m.after)],
+    sans: history.map((m) => m.san),
+    moves: history.map((m) => [m.from as Key, m.to as Key] as [Key, Key]),
+  };
+}
+
+function LinearReplay({
+  game,
+  gameTagIds,
+  onTagsChange,
+}: {
+  game: Game;
+  gameTagIds: string[];
+  onTagsChange: (ids: string[]) => void;
+}) {
+  const navigate = useNavigate();
+  const [ply, setPly] = useState(0);
+  const replay = useMemo<ReplayData | null>(() => {
+    try {
+      return buildReplay(game.pgn);
+    } catch {
+      return null;
+    }
+  }, [game]);
+
   if (!replay)
     return <p className="text-sm text-red-400">No pude reproducir el PGN.</p>;
 
