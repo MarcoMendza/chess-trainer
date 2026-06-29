@@ -1,10 +1,6 @@
 import { db } from "../db/db.ts";
 import { newRow, now } from "../db/helpers.ts";
-import {
-  descendantTagIds,
-  subtreeCounts,
-  tagIdsByPosition,
-} from "../tags/repo.ts";
+import { tagIdsByPosition } from "../tags/repo.ts";
 import type {
   CardType,
   Color,
@@ -131,17 +127,9 @@ export async function saveCard(input: SaveCardInput): Promise<SrsCard> {
 
 // ===== Consultas de repaso =====
 
-export interface StudyOptions {
-  /** Acotar a un tema (modo bloque): incluye todo su subárbol. Si se omite, entran todas. */
-  tagId?: string;
-  /** Mezclar temas a propósito (default en "todas"). Ignorado si hay tagId. */
-  interleave?: boolean;
-  limit?: number;
-}
-
 /**
  * Intercalado deliberado: agrupa por primer tag (las sin tag forman su grupo) y hace
- * round-robin entre grupos, preservando el orden por `due` dentro de cada uno.
+ * round-robin entre grupos, preservando el orden de entrada dentro de cada uno.
  */
 function interleaveByTag(items: StudyCard[]): StudyCard[] {
   const groups = new Map<string, StudyCard[]>();
@@ -159,14 +147,8 @@ function interleaveByTag(items: StudyCard[]): StudyCard[] {
   return out;
 }
 
-/**
- * Tarjetas vencidas (due <= ahora) no borradas, con su posición y tags.
- * Default (sin tagId): orden intercalado por tema. Con tagId: solo ese tema, en orden de due.
- */
-export async function getDueStudyCards(
-  opts: StudyOptions = {},
-): Promise<StudyCard[]> {
-  const { tagId, interleave = true, limit = 50 } = opts;
+/** Todas las tarjetas vencidas (due <= ahora) vivas, con su posición y tags, orden por due. */
+async function loadDueBase(): Promise<StudyCard[]> {
   const ts = now();
   const cards = await db.srs_cards
     .where("due")
@@ -183,26 +165,33 @@ export async function getDueStudyCards(
   }
   const tagMap = await tagIdsByPosition(base.map((b) => b.position.id));
   for (const item of base) item.tagIds = tagMap.get(item.position.id) ?? [];
-
-  if (tagId) {
-    // Subárbol: el nodo elegido junta las tarjetas de todos sus descendientes.
-    const subtree = new Set(await descendantTagIds(tagId));
-    return base
-      .filter((b) => b.tagIds.some((t) => subtree.has(t)))
-      .slice(0, limit);
-  }
-  const ordered = interleave ? interleaveByTag(base) : base;
-  return ordered.slice(0, limit);
+  return base;
 }
 
 /**
- * Conteo de tarjetas vencidas por nodo, contando todo su subárbol (para los chips de
- * filtro en Estudiar): elegir un padre trae las vencidas de sus descendientes.
+ * Cola del repaso del día (Fase Estudiar §2/§3): los repasos vencidos **no-nuevos siempre
+ * completos** + las tarjetas **nuevas acotadas a `newLimit`**, todo intercalado por tema.
+ * Mueve el calendario (se califica con FSRS). El límite controla SOLO las nuevas.
  */
-export async function getDueTagCounts(): Promise<Map<string, number>> {
-  const due = await getDueStudyCards({ interleave: false, limit: Infinity });
-  const tags = await db.tags.toArray();
-  return subtreeCounts(tags, due);
+export async function getDayReviewQueue(opts: {
+  newLimit: number;
+}): Promise<StudyCard[]> {
+  const base = await loadDueBase();
+  const reviews = base.filter((b) => b.card.state !== "new");
+  const news = base
+    .filter((b) => b.card.state === "new")
+    .slice(0, Math.max(0, opts.newLimit));
+  return interleaveByTag([...reviews, ...news]);
+}
+
+/** Cuántas tarjetas nuevas (state `new`) hay vencidas ahora (para acotar el prompt). */
+export async function countDueNew(): Promise<number> {
+  const ts = now();
+  return db.srs_cards
+    .where("due")
+    .belowOrEqual(ts)
+    .filter((c) => c.deleted === 0 && c.state === "new")
+    .count();
 }
 
 /** Cuántas tarjetas están vencidas ahora. */

@@ -340,6 +340,25 @@ export async function positionsBySubtree(tagId: string): Promise<Position[]> {
     .sort((a, b) => a.created_at - b.created_at);
 }
 
+/**
+ * Posiciones (no borradas) de una categoría de primer nivel (Práctica, Fase Estudiar §4):
+ * todas las fichas etiquetadas con cualquier tag de esa categoría (raíces y subárbol, que
+ * heredan la categoría). Independiente del calendario FSRS: no mira `due`.
+ */
+export async function positionsByCategory(
+  category: TagCategory,
+): Promise<Position[]> {
+  const tags = await db.tags.toArray();
+  const ids = tags.filter((t) => t.category === category).map((t) => t.id);
+  if (!ids.length) return [];
+  const rows = await db.position_tags.where("tag_id").anyOf(ids).toArray();
+  const posIds = [...new Set(rows.map((r) => r.position_id))];
+  const positions = await db.positions.bulkGet(posIds);
+  return positions
+    .filter((p): p is Position => !!p && p.deleted === 0)
+    .sort((a, b) => a.created_at - b.created_at);
+}
+
 /** IDs de partidas etiquetadas con el tag dado (para el filtro de Torneos). */
 export async function gameIdsByTag(tagId: string): Promise<Set<string>> {
   const rows = await db.game_tags.where("tag_id").equals(tagId).toArray();
