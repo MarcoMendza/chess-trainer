@@ -3,6 +3,7 @@ import StudyPage from "./study/StudyPage.tsx";
 import CollectionsPage from "./games/CollectionsPage.tsx";
 import CollectionDetailPage from "./games/CollectionDetailPage.tsx";
 import GameFormPage from "./games/GameFormPage.tsx";
+import NewGamePage from "./games/NewGamePage.tsx";
 import GameViewPage from "./games/GameViewPage.tsx";
 import ImportPage from "./games/ImportPage.tsx";
 import AnalysisPage from "./analysis/AnalysisPage.tsx";
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/torneos" element={<CollectionsPage />} />
             <Route path="/torneos/:collectionId" element={<CollectionDetailPage />} />
             <Route path="/torneos/:collectionId/nueva" element={<GameFormPage />} />
+            <Route path="/torneos/:collectionId/tablero" element={<NewGamePage />} />
             <Route path="/partida/:gameId" element={<GameViewPage />} />
             <Route path="/importar" element={<ImportPage />} />
             <Route path="/analizar" element={<AnalysisPage />} />

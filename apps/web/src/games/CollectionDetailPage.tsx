@@ -57,12 +57,20 @@ export default function CollectionDetailPage() {
         <h1 className="mt-1 text-xl font-semibold">{collection.name}</h1>
       </div>
 
-      <Link
-        to={`/torneos/${collection.id}/nueva`}
-        className="block rounded-lg bg-emerald-600 px-4 py-3 text-center text-sm font-medium text-white active:bg-emerald-700"
-      >
-        + Anotar partida
-      </Link>
+      <div className="flex gap-2">
+        <Link
+          to={`/torneos/${collection.id}/tablero`}
+          className="flex-1 rounded-lg bg-emerald-600 px-4 py-3 text-center text-sm font-medium text-white active:bg-emerald-700"
+        >
+          ♟ Nueva partida
+        </Link>
+        <Link
+          to={`/torneos/${collection.id}/nueva`}
+          className="flex-1 rounded-lg border border-gray-600 px-4 py-3 text-center text-sm font-medium text-gray-200 active:bg-gray-700"
+        >
+          Pegar PGN
+        </Link>
+      </div>
 
       {usedTags.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
