@@ -151,6 +151,18 @@ CREATE TABLE variations (
 -- jugadas candidatas. Colores: main=verde, sub=amarillo, bad=rojo, conditional=azul.
 -- El "rojo fuera de árbol" no se almacena: se deriva al reproducir.
 
+-- ===== Settings (Fase Estudiar; añadido aditivo, NO cambia stores previos) =====
+-- Registro singleton de preferencias LOCALES del dispositivo (id = "app"). NO sincroniza
+-- (no lleva updated_at/deleted). Hoy solo guarda el cupo de tarjetas nuevas por día de
+-- Estudiar. En IndexedDB (cel) es el store `settings` (Dexie v4). Ver docs/FASE-ESTUDIAR.md §3.
+CREATE TABLE settings (
+  id                TEXT PRIMARY KEY,         -- "app" (único registro)
+  new_per_day_default INTEGER NOT NULL,       -- preset recordado del prompt "¿cuántas nuevas hoy?"
+  study_day         TEXT NOT NULL,            -- "YYYY-MM-DD" local de los contadores de abajo
+  new_goal_today    INTEGER NOT NULL,         -- nuevas elegidas para study_day
+  new_done_today    INTEGER NOT NULL          -- nuevas ya introducidas en study_day
+);
+
 CREATE INDEX idx_cards_due  ON srs_cards(due);
 CREATE INDEX idx_pos_game   ON positions(game_id);
 CREATE INDEX idx_games_coll ON games(collection_id);
