@@ -1,5 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { Link, useParams } from "react-router-dom";
 import { Chess } from "chess.js";
 import type { Key } from "chessground/types";
 import Chessground from "../board/Chessground.tsx";
@@ -10,6 +16,9 @@ import { hasMoves, nodeAtPath, type NodePath } from "../study/variations.ts";
 import { useVariationTree } from "../study/useVariationTree.ts";
 import VariationEditor from "../study/VariationEditor.tsx";
 import VariationTree from "../study/VariationTree.tsx";
+import EvalBar from "../analysis/EvalBar.tsx";
+import EnginePanel from "../analysis/EnginePanel.tsx";
+import { useEmbeddedEngine } from "../analysis/useEmbeddedEngine.ts";
 import TagPicker from "../tags/TagPicker.tsx";
 import { setGameTags, tagsForGame } from "../tags/repo.ts";
 import type { Game, VariationNode } from "../db/schema.ts";
@@ -41,7 +50,6 @@ function moveSquares(
 
 export default function GameViewPage() {
   const { gameId } = useParams<{ gameId: string }>();
-  const navigate = useNavigate();
   const [game, setGame] = useState<Game | undefined>();
   const [loading, setLoading] = useState(true);
   const [gameTagIds, setGameTagIds] = useState<string[]>([]);
@@ -105,11 +113,47 @@ export default function GameViewPage() {
     );
   }
 
+  return (
+    <GameTreeView
+      game={game}
+      root={root}
+      generalNote={generalNote}
+      path={path}
+      setPath={setPath}
+      gameTagIds={gameTagIds}
+      onTagsChange={onTagsChange}
+      onEdit={() => setEditing(true)}
+    />
+  );
+}
+
+// ===== Vista de lectura con árbol + motor embebido =====
+
+function GameTreeView({
+  game,
+  root,
+  generalNote,
+  path,
+  setPath,
+  gameTagIds,
+  onTagsChange,
+  onEdit,
+}: {
+  game: Game;
+  root: VariationNode;
+  generalNote: string | null;
+  path: NodePath;
+  setPath: Dispatch<SetStateAction<NodePath>>;
+  gameTagIds: string[];
+  onTagsChange: (ids: string[]) => void;
+  onEdit: () => void;
+}) {
   const node = nodeAtPath(root, path) ?? root;
   const orientation = game.my_color === "b" ? "black" : "white";
   const lastMove = moveSquares(root, path);
   const canPrev = path.length > 0;
   const canNext = node.children.length > 0;
+  const engine = useEmbeddedEngine(node.fen);
 
   return (
     <div className="space-y-3">
@@ -127,7 +171,7 @@ export default function GameViewPage() {
           </h1>
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={onEdit}
             className="shrink-0 rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700"
           >
             ✎ Editar
@@ -141,12 +185,18 @@ export default function GameViewPage() {
         </p>
       )}
 
-      <Chessground
-        fen={node.fen}
-        orientation={orientation}
-        viewOnly
-        lastMove={lastMove}
-      />
+      <div className="flex gap-2">
+        <EvalBar best={engine.analyzing ? engine.best : undefined} />
+        <div className="flex-1">
+          <Chessground
+            fen={node.fen}
+            orientation={orientation}
+            viewOnly
+            lastMove={lastMove}
+            autoShapes={engine.analyzing ? engine.autoShapes : undefined}
+          />
+        </div>
+      </div>
 
       {node.note && (
         <p className="rounded-lg border border-gray-700 bg-gray-800 p-2 text-sm italic text-gray-300">
@@ -174,20 +224,35 @@ export default function GameViewPage() {
       {/* Árbol completo con variantes; tocar una jugada salta a esa posición. */}
       <VariationTree tree={root} selectedPath={path} onSelect={setPath} />
 
+      <button
+        type="button"
+        onClick={() => engine.setAnalyzing((v) => !v)}
+        disabled={!engine.ready}
+        className={`w-full rounded-lg border px-4 py-2 text-sm disabled:opacity-40 ${
+          engine.analyzing
+            ? "border-amber-600 text-amber-300 active:bg-amber-900/40"
+            : "border-gray-600 active:bg-gray-700"
+        }`}
+      >
+        {engine.ready ? "🔍 Analizar con motor" : "Cargando motor…"}
+      </button>
+
+      {engine.analyzing && (
+        <EnginePanel
+          fen={node.fen}
+          lines={engine.lines}
+          multipv={engine.multipv}
+          onMultipv={engine.onMultipv}
+          onStop={() => engine.setAnalyzing(false)}
+        />
+      )}
+
       <div>
         <h2 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
           Temas
         </h2>
         <TagPicker value={gameTagIds} onChange={onTagsChange} />
       </div>
-
-      <button
-        type="button"
-        onClick={() => navigate("/analizar", { state: { fen: node.fen } })}
-        className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700"
-      >
-        Analizar con el motor
-      </button>
     </div>
   );
 }
@@ -221,7 +286,6 @@ function LinearReplay({
   gameTagIds: string[];
   onTagsChange: (ids: string[]) => void;
 }) {
-  const navigate = useNavigate();
   const [ply, setPly] = useState(0);
   const replay = useMemo<ReplayData | null>(() => {
     try {
@@ -231,11 +295,14 @@ function LinearReplay({
     }
   }, [game]);
 
+  const maxPly = replay ? replay.fens.length - 1 : 0;
+  const clampedPly = Math.min(ply, maxPly);
+  const fen = replay ? replay.fens[clampedPly] : START_FEN;
+  const engine = useEmbeddedEngine(fen);
+
   if (!replay)
     return <p className="text-sm text-red-400">No pude reproducir el PGN.</p>;
 
-  const maxPly = replay.fens.length - 1;
-  const clampedPly = Math.min(ply, maxPly);
   const orientation = game.my_color === "b" ? "black" : "white";
   const lastMove = clampedPly > 0 ? replay.moves[clampedPly - 1] : undefined;
 
@@ -254,12 +321,18 @@ function LinearReplay({
         </h1>
       </div>
 
-      <Chessground
-        fen={replay.fens[clampedPly]}
-        orientation={orientation}
-        viewOnly
-        lastMove={lastMove}
-      />
+      <div className="flex gap-2">
+        <EvalBar best={engine.analyzing ? engine.best : undefined} />
+        <div className="flex-1">
+          <Chessground
+            fen={fen}
+            orientation={orientation}
+            viewOnly
+            lastMove={lastMove}
+            autoShapes={engine.analyzing ? engine.autoShapes : undefined}
+          />
+        </div>
+      </div>
 
       <div>
         <h2 className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -291,13 +364,26 @@ function LinearReplay({
 
       <button
         type="button"
-        onClick={() =>
-          navigate("/analizar", { state: { pgn: game.pgn, ply: clampedPly } })
-        }
-        className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700"
+        onClick={() => engine.setAnalyzing((v) => !v)}
+        disabled={!engine.ready}
+        className={`w-full rounded-lg border px-4 py-2 text-sm disabled:opacity-40 ${
+          engine.analyzing
+            ? "border-amber-600 text-amber-300 active:bg-amber-900/40"
+            : "border-gray-600 active:bg-gray-700"
+        }`}
       >
-        Analizar con el motor
+        {engine.ready ? "🔍 Analizar con motor" : "Cargando motor…"}
       </button>
+
+      {engine.analyzing && (
+        <EnginePanel
+          fen={fen}
+          lines={engine.lines}
+          multipv={engine.multipv}
+          onMultipv={engine.onMultipv}
+          onStop={() => engine.setAnalyzing(false)}
+        />
+      )}
     </div>
   );
 }
