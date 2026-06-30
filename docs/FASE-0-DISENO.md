@@ -83,8 +83,21 @@ CREATE TABLE positions (
 CREATE TABLE tags (
   id        TEXT PRIMARY KEY,
   name      TEXT NOT NULL UNIQUE,          -- "Clavada", "Profilaxis", "Peones doblados", "f2-f7"
-  category  TEXT,                          -- finales | estructura | tactica | apertura | medio
+  category  TEXT,                          -- key (slug) de categories.key; Fase Final lo hizo editable
   parent_id TEXT REFERENCES tags(id)       -- Fase Jerarquía: árbol de temas (NULL = raíz; hereda categoría del padre). Tope 4 niveles, sin ciclos.
+);
+-- ===== Categorías (Fase Final; añadido aditivo, NO cambia stores previos) =====
+-- Antes hardcodeadas (5 fijas). Ahora editables desde la UI (Gestionar temas → Categorías).
+-- `key` es el slug estable que `tags.category` referencia; label/color son presentación.
+-- En IndexedDB (cel) es el store `categories` (Dexie v5). Se siembran las 5 de fábrica de
+-- forma idempotente al arranque (ensureDefaultCategories), no en el upgrade.
+CREATE TABLE categories (
+  id         TEXT PRIMARY KEY,             -- UUID v4
+  key        TEXT NOT NULL UNIQUE,         -- slug estable (FK lógica de tags.category)
+  label      TEXT NOT NULL,                -- nombre visible, editable
+  color      TEXT NOT NULL,                -- token de paleta (sky|amber|red|emerald|violet|…)
+  sort_order INTEGER NOT NULL,
+  created_at INTEGER, updated_at INTEGER, deleted INTEGER DEFAULT 0
 );
 CREATE TABLE position_tags (
   position_id TEXT NOT NULL REFERENCES positions(id),

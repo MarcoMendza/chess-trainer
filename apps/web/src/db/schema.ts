@@ -50,12 +50,21 @@ export interface Position extends SyncBase {
   source_time?: string; // mm:ss
 }
 
-export type TagCategory =
-  | "finales"
-  | "estructura"
-  | "tactica"
-  | "apertura"
-  | "medio";
+// Categoría de un tag: el `key` (slug) de una fila `Category`. String para permitir
+// categorías definidas por el usuario (ver `categories` store + tags/categories.ts).
+export type TagCategory = string;
+
+/**
+ * Categoría de primer nivel, ahora editable desde la UI (antes hardcodeada).
+ * `key` es el slug estable que se guarda en `Tag.category` (FK lógica); `label` y `color`
+ * son presentación editables. Se siembran las 5 de fábrica (finales/estructura/…).
+ */
+export interface Category extends SyncBase {
+  key: string;
+  label: string;
+  color: string; // token de paleta (ver tags/categories.ts PALETTE)
+  sort_order: number;
+}
 
 export interface Tag {
   id: string;

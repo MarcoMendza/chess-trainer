@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Tag, TagCategory } from "../db/schema.ts";
+import type { Tag } from "../db/schema.ts";
 import { childrenOf, getOrCreateTag, listTags, validParentIdsForNew } from "./repo.ts";
-import { CATEGORIES, CATEGORY_LABEL, categoryChip } from "./categories.ts";
+import { useCategories } from "./categories.ts";
 
 interface TagPickerProps {
   /** IDs de tags seleccionados (controlado). */
@@ -16,8 +16,11 @@ interface TagPickerProps {
 export default function TagPicker({ value, onChange }: TagPickerProps) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [query, setQuery] = useState("");
-  const [newCategory, setNewCategory] = useState<TagCategory>("tactica");
+  const { categories, label, chip } = useCategories();
+  const [newCategory, setNewCategory] = useState<string>(""); // "" = primera categoría
   const [newParent, setNewParent] = useState<string>(""); // "" = raíz
+  // Categoría efectiva: la elegida o, por defecto, la primera disponible.
+  const effectiveCategory = newCategory || categories[0]?.key || "";
 
   async function refresh() {
     setTags(await listTags());
@@ -48,7 +51,7 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
     const name = query.trim();
     if (!name) return;
     // Con padre, la categoría se hereda de él (igual que en Gestionar temas).
-    const tag = await getOrCreateTag(name, newCategory, newParent || null);
+    const tag = await getOrCreateTag(name, effectiveCategory, newParent || null);
     setNewParent("");
     await refresh();
     add(tag.id);
@@ -62,14 +65,14 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
     const out: { tag: Tag; depth: number }[] = [];
     const walk = (parentId: string | null, depth: number) => {
       for (const t of childrenOf(tags, parentId)) {
-        if (t.category !== newCategory) continue; // categoría = la de la raíz del subárbol
+        if (t.category !== effectiveCategory) continue; // categoría = la de la raíz del subárbol
         if (valid.has(t.id)) out.push({ tag: t, depth });
         walk(t.id, depth + 1);
       }
     };
     walk(null, 0);
     return out;
-  }, [tags, newCategory]);
+  }, [tags, effectiveCategory]);
 
   return (
     <div className="space-y-2">
@@ -80,7 +83,7 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
               key={t.id}
               type="button"
               onClick={() => remove(t.id)}
-              className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs ${categoryChip(t.category)}`}
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs ${chip(t.category)}`}
             >
               {t.name}
               <span aria-hidden className="text-gray-500">
@@ -109,7 +112,7 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
             >
               <span>{t.name}</span>
               <span className="text-xs text-gray-500">
-                {t.category ? CATEGORY_LABEL[t.category] : "—"}
+                {t.category ? label(t.category) : "—"}
               </span>
             </button>
           ))}
@@ -139,14 +142,14 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
                 <label className="flex items-center gap-1 text-xs text-gray-400">
                   Categoría
                   <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value as TagCategory)}
+                    value={effectiveCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
                     disabled={newParent !== ""}
                     className="rounded border border-gray-600 bg-gray-800 px-2 py-1 text-xs disabled:opacity-40"
                   >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {CATEGORY_LABEL[c]}
+                    {categories.map((c) => (
+                      <option key={c.key} value={c.key}>
+                        {c.label}
                       </option>
                     ))}
                   </select>

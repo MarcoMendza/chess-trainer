@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { createGame } from "./repo.ts";
+import { createGame, updateGame } from "./repo.ts";
 import { treeToPgn } from "./pgnTree.ts";
-import type { Color, VariationNode } from "../db/schema.ts";
+import type { Color, Game, VariationNode } from "../db/schema.ts";
 
 const inputClass =
   "w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm outline-none focus:border-emerald-500";
@@ -12,30 +12,43 @@ interface SaveGameSheetProps {
   collectionId: string;
   /** Ritmo heredado del torneo (prefill del último juego); editable. */
   defaultTimeControl?: string;
+  /** Edición: partida existente a actualizar (si se omite, crea una partida nueva). */
+  game?: Game;
+  /** Edición: nota general actual (va en el PGN como comentario antes de la jugada 1). */
+  defaultGeneralNote?: string;
   onClose: () => void;
+  /** Edición: callback tras actualizar (para recargar la vista). */
+  onSaved?: () => void;
 }
 
 /**
  * Formulario de guardado de una partida anotada en tablero (Fase Anotar §4).
  * Datos por partida + nota general; el árbol se serializa a PGN (sidelines + comentarios)
  * y se persiste en `games`. Ritmo prefilled del torneo (heredado), editable.
+ * En modo edición (`game`) actualiza la partida en vez de crear una nueva.
  */
 export default function SaveGameSheet({
   tree,
   collectionId,
   defaultTimeControl,
+  game,
+  defaultGeneralNote,
   onClose,
+  onSaved,
 }: SaveGameSheetProps) {
   const navigate = useNavigate();
-  const [white, setWhite] = useState("");
-  const [black, setBlack] = useState("");
-  const [result, setResult] = useState("*");
-  const [myColor, setMyColor] = useState<"" | Color>("");
-  const [round, setRound] = useState("");
-  const [board, setBoard] = useState("");
-  const [timeControl, setTimeControl] = useState(defaultTimeControl ?? "");
-  const [playedOn, setPlayedOn] = useState("");
-  const [generalNote, setGeneralNote] = useState("");
+  const editing = !!game;
+  const [white, setWhite] = useState(game?.white ?? "");
+  const [black, setBlack] = useState(game?.black ?? "");
+  const [result, setResult] = useState(game?.result ?? "*");
+  const [myColor, setMyColor] = useState<"" | Color>(game?.my_color ?? "");
+  const [round, setRound] = useState(game?.round ?? "");
+  const [board, setBoard] = useState(game?.board ?? "");
+  const [timeControl, setTimeControl] = useState(
+    game?.time_control ?? defaultTimeControl ?? "",
+  );
+  const [playedOn, setPlayedOn] = useState(game?.played_on ?? "");
+  const [generalNote, setGeneralNote] = useState(defaultGeneralNote ?? "");
   const [saving, setSaving] = useState(false);
 
   async function onSave() {
@@ -50,8 +63,7 @@ export default function SaveGameSheet({
         round: round.trim() || undefined,
         generalNote: generalNote.trim() || undefined,
       });
-      const game = await createGame({
-        collection_id: collectionId,
+      const fields = {
         pgn,
         white: white.trim() || undefined,
         black: black.trim() || undefined,
@@ -61,9 +73,19 @@ export default function SaveGameSheet({
         board: board.trim() || undefined,
         time_control: timeControl.trim() || undefined,
         my_color: myColor || undefined,
-        source: "OTB",
-      });
-      navigate(`/partida/${game.id}`);
+      };
+      if (game) {
+        await updateGame(game.id, fields);
+        onSaved?.();
+        onClose();
+      } else {
+        const created = await createGame({
+          collection_id: collectionId,
+          source: "OTB",
+          ...fields,
+        });
+        navigate(`/partida/${created.id}`);
+      }
     } finally {
       setSaving(false);
     }
@@ -74,7 +96,9 @@ export default function SaveGameSheet({
       <button type="button" aria-label="Cerrar" onClick={onClose} className="flex-1" />
       <div className="max-h-[88vh] space-y-3 overflow-y-auto rounded-t-2xl border-t border-gray-700 bg-gray-900 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Guardar partida</h2>
+          <h2 className="font-semibold">
+            {editing ? "Editar partida" : "Guardar partida"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -150,7 +174,7 @@ export default function SaveGameSheet({
           disabled={saving}
           className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700 disabled:opacity-50"
         >
-          {saving ? "Guardando…" : "Guardar partida"}
+          {saving ? "Guardando…" : editing ? "Guardar cambios" : "Guardar partida"}
         </button>
       </div>
     </div>

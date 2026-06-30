@@ -1,6 +1,6 @@
 import { db } from "../db/db.ts";
-import { newRow, now } from "../db/helpers.ts";
-import { tagIdsByPosition } from "../tags/repo.ts";
+import { newRow, now, touch } from "../db/helpers.ts";
+import { setPositionTags, tagIdsByPosition } from "../tags/repo.ts";
 import type {
   CardType,
   Color,
@@ -10,7 +10,11 @@ import type {
   Variation,
   VariationNode,
 } from "../db/schema.ts";
-import { hasMoves } from "./variations.ts";
+import {
+  clearVariationByPosition,
+  hasMoves,
+  saveVariationTree,
+} from "./variations.ts";
 
 export interface StudyCard {
   card: SrsCard;
@@ -109,6 +113,37 @@ export async function createPositionWithCard(input: NewCardInput): Promise<SrsCa
     },
   );
   return card;
+}
+
+/** Posición viva por id (o undefined si no existe o está borrada). */
+export async function getPosition(id: string): Promise<Position | undefined> {
+  const p = await db.positions.get(id);
+  return p && p.deleted === 0 ? p : undefined;
+}
+
+/**
+ * Actualiza una tarjeta existente (editar): campos de la posición + tags + árbol de
+ * variantes. No toca la `srs_card` (no reprograma FSRS). Si el árbol queda sin jugadas,
+ * se borra el árbol previo.
+ */
+/** Campos editables del contenido de una tarjeta (sin fen/gameId/ply, que no cambian). */
+export type EditCardInput = Omit<SaveCardInput, "fen" | "gameId" | "ply">;
+
+export async function updateCardPosition(
+  positionId: string,
+  input: EditCardInput,
+): Promise<void> {
+  await db.positions.update(positionId, {
+    ...touch(),
+    idea: input.idea,
+    eval_note: input.evalNote,
+    best_move: input.bestMove,
+    source_url: input.sourceUrl,
+    source_time: input.sourceTime,
+  });
+  await setPositionTags(positionId, input.tagIds ?? []);
+  if (hasMoves(input.tree)) await saveVariationTree(positionId, input.tree!);
+  else await clearVariationByPosition(positionId);
 }
 
 /**

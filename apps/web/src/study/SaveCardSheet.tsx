@@ -1,15 +1,22 @@
 import { useState } from "react";
 import Chessground from "../board/Chessground.tsx";
 import TagPicker from "../tags/TagPicker.tsx";
-import { saveCard } from "./repo.ts";
+import { saveCard, updateCardPosition } from "./repo.ts";
 import { useVariationTree } from "./useVariationTree.ts";
 import VariationEditor from "./VariationEditor.tsx";
 import { hasMoves } from "./variations.ts";
+import type { Position, VariationNode } from "../db/schema.ts";
 
 interface SaveCardSheetProps {
   fen: string;
   gameId?: string | null;
   ply?: number;
+  /** Edición: posición existente a actualizar (si se omite, crea una tarjeta nueva). */
+  position?: Position;
+  /** Edición: árbol de variantes actual de la tarjeta (para sembrar el editor). */
+  initialTree?: VariationNode | null;
+  /** Edición: tags actuales de la tarjeta. */
+  initialTagIds?: string[];
   onClose: () => void;
   onSaved?: () => void;
 }
@@ -25,34 +32,40 @@ export default function SaveCardSheet({
   fen,
   gameId,
   ply,
+  position,
+  initialTree,
+  initialTagIds,
   onClose,
   onSaved,
 }: SaveCardSheetProps) {
-  const [idea, setIdea] = useState("");
-  const [evalNote, setEvalNote] = useState("");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [sourceTime, setSourceTime] = useState("");
-  const [tagIds, setTagIds] = useState<string[]>([]);
+  const editing = !!position;
+  const [idea, setIdea] = useState(position?.idea ?? "");
+  const [evalNote, setEvalNote] = useState(position?.eval_note ?? "");
+  const [sourceUrl, setSourceUrl] = useState(position?.source_url ?? "");
+  const [sourceTime, setSourceTime] = useState(position?.source_time ?? "");
+  const [tagIds, setTagIds] = useState<string[]>(initialTagIds ?? []);
   const [saving, setSaving] = useState(false);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(hasMoves(initialTree));
 
   const orientation = fen.split(" ")[1] === "b" ? "black" : "white";
-  const variations = useVariationTree(fen);
+  const variations = useVariationTree(fen, initialTree);
 
   async function onSave() {
     setSaving(true);
     try {
-      await saveCard({
-        fen,
-        gameId: gameId ?? null,
-        ply,
+      const input = {
         idea: idea.trim() || undefined,
         evalNote: evalNote.trim() || undefined,
         sourceUrl: sourceUrl.trim() || undefined,
         sourceTime: sourceTime.trim() || undefined,
         tagIds,
         tree: hasMoves(variations.tree) ? variations.tree : undefined,
-      });
+      };
+      if (position) {
+        await updateCardPosition(position.id, input);
+      } else {
+        await saveCard({ ...input, fen, gameId: gameId ?? null, ply });
+      }
       onSaved?.();
       onClose();
     } finally {
@@ -71,7 +84,9 @@ export default function SaveCardSheet({
       />
       <div className="max-h-[88vh] space-y-3 overflow-y-auto rounded-t-2xl border-t border-gray-700 bg-gray-900 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Guardar como tarjeta</h2>
+          <h2 className="font-semibold">
+            {editing ? "Editar tarjeta" : "Guardar como tarjeta"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -163,7 +178,7 @@ export default function SaveCardSheet({
           disabled={saving}
           className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700 disabled:opacity-50"
         >
-          {saving ? "Guardando…" : "Guardar tarjeta"}
+          {saving ? "Guardando…" : editing ? "Guardar cambios" : "Guardar tarjeta"}
         </button>
       </div>
     </div>
