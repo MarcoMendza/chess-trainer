@@ -136,6 +136,12 @@ export async function getVariationByPosition(
   return rows[0];
 }
 
+/** Soft-delete del árbol de una posición (al editar una tarjeta y borrar todas las jugadas). */
+export async function clearVariationByPosition(positionId: string): Promise<void> {
+  const existing = await getVariationByPosition(positionId);
+  if (existing) await db.variations.put({ ...existing, ...touch(), deleted: 1 });
+}
+
 /** Crea o actualiza el árbol de una posición. */
 export async function saveVariationTree(
   positionId: string,

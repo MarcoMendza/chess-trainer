@@ -5,7 +5,10 @@ import type { Key } from "chessground/types";
 import Chessground from "../board/Chessground.tsx";
 import { getGame } from "./repo.ts";
 import { pgnToTree } from "./pgnTree.ts";
-import { nodeAtPath, type NodePath } from "../study/variations.ts";
+import SaveGameSheet from "./SaveGameSheet.tsx";
+import { hasMoves, nodeAtPath, type NodePath } from "../study/variations.ts";
+import { useVariationTree } from "../study/useVariationTree.ts";
+import VariationEditor from "../study/VariationEditor.tsx";
 import VariationTree from "../study/VariationTree.tsx";
 import TagPicker from "../tags/TagPicker.tsx";
 import { setGameTags, tagsForGame } from "../tags/repo.ts";
@@ -43,6 +46,7 @@ export default function GameViewPage() {
   const [loading, setLoading] = useState(true);
   const [gameTagIds, setGameTagIds] = useState<string[]>([]);
   const [path, setPath] = useState<NodePath>([]);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     if (!gameId) return;
@@ -52,6 +56,14 @@ export default function GameViewPage() {
       setLoading(false);
     })();
   }, [gameId]);
+
+  // Recarga la partida tras guardar la edición (el PGN cambió).
+  async function reloadGame() {
+    if (!gameId) return;
+    setGame(await getGame(gameId));
+    setPath([]);
+    setEditing(false);
+  }
 
   function onTagsChange(ids: string[]) {
     setGameTagIds(ids);
@@ -78,6 +90,21 @@ export default function GameViewPage() {
     return <LinearReplay game={game} gameTagIds={gameTagIds} onTagsChange={onTagsChange} />;
 
   const { root, generalNote } = parsed;
+
+  // Modo edición: editor de variantes compartido sembrado con el árbol parseado del PGN.
+  if (editing) {
+    return (
+      <GameEditPane
+        game={game}
+        startFen={startFenOf(game.pgn)}
+        root={root}
+        generalNote={generalNote}
+        onCancel={() => setEditing(false)}
+        onSaved={() => void reloadGame()}
+      />
+    );
+  }
+
   const node = nodeAtPath(root, path) ?? root;
   const orientation = game.my_color === "b" ? "black" : "white";
   const lastMove = moveSquares(root, path);
@@ -93,10 +120,19 @@ export default function GameViewPage() {
         >
           ← Volver
         </Link>
-        <h1 className="mt-1 text-lg font-semibold">
-          {(game.white || "?") + " – " + (game.black || "?")}{" "}
-          <span className="text-gray-400">{game.result || "*"}</span>
-        </h1>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <h1 className="text-lg font-semibold">
+            {(game.white || "?") + " – " + (game.black || "?")}{" "}
+            <span className="text-gray-400">{game.result || "*"}</span>
+          </h1>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="shrink-0 rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700"
+          >
+            ✎ Editar
+          </button>
+        </div>
       </div>
 
       {generalNote && (
@@ -262,6 +298,80 @@ function LinearReplay({
       >
         Analizar con el motor
       </button>
+    </div>
+  );
+}
+
+// ===== Modo edición: reusa el editor de variantes compartido =====
+
+function GameEditPane({
+  game,
+  startFen,
+  root,
+  generalNote,
+  onCancel,
+  onSaved,
+}: {
+  game: Game;
+  startFen: string;
+  root: VariationNode;
+  generalNote: string | null;
+  onCancel: () => void;
+  onSaved: () => void;
+}) {
+  const variations = useVariationTree(startFen, root);
+  const [orientation, setOrientation] = useState<"white" | "black">(
+    game.my_color === "b" ? "black" : "white",
+  );
+  const [showForm, setShowForm] = useState(false);
+  const movesYet = hasMoves(variations.tree);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <button type="button" onClick={onCancel} className="text-sm text-gray-400">
+          ← Cancelar
+        </button>
+        <h1 className="text-lg font-semibold">Editar partida</h1>
+        <button
+          type="button"
+          onClick={() => setOrientation((o) => (o === "white" ? "black" : "white"))}
+          className="rounded-lg border border-gray-600 px-3 py-1.5 text-xs active:bg-gray-700"
+        >
+          ⟲ Girar
+        </button>
+      </div>
+
+      <VariationEditor variations={variations} orientation={orientation} />
+
+      <button
+        type="button"
+        onClick={variations.promote}
+        disabled={variations.atRoot}
+        className="w-full rounded-lg border border-emerald-700 px-3 py-2 text-xs text-emerald-300 active:bg-emerald-900/40 disabled:opacity-30"
+      >
+        ⭱ Promover a principal
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setShowForm(true)}
+        disabled={!movesYet}
+        className="w-full rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white active:bg-emerald-700 disabled:opacity-50"
+      >
+        Guardar cambios
+      </button>
+
+      {showForm && (
+        <SaveGameSheet
+          tree={variations.tree}
+          collectionId={game.collection_id ?? ""}
+          game={game}
+          defaultGeneralNote={generalNote ?? ""}
+          onClose={() => setShowForm(false)}
+          onSaved={onSaved}
+        />
+      )}
     </div>
   );
 }

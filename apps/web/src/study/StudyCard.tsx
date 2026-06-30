@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from "react";
 import Chessground from "../board/Chessground.tsx";
 import StudyPlayer, { type PlayMode } from "./StudyPlayer.tsx";
+import SaveCardSheet from "./SaveCardSheet.tsx";
 import { categoryChip } from "../tags/categories.ts";
 import { videoUrlAt } from "../lib/video.ts";
 import type { Position, Tag, VariationNode } from "../db/schema.ts";
@@ -13,6 +14,8 @@ interface StudyCardProps {
   playMode: PlayMode;
   onPlayModeChange: (mode: PlayMode) => void;
   onAnalyze: (fen: string) => void;
+  /** Si se pasa, muestra "Editar" y se llama tras guardar (para recargar la ficha). */
+  onEdited?: () => void;
   /** Acciones bajo el panel de la idea, solo visibles al revelar (rating FSRS o etiqueta). */
   footer?: ReactNode;
 }
@@ -30,9 +33,11 @@ export default function StudyCard({
   playMode,
   onPlayModeChange,
   onAnalyze,
+  onEdited,
   footer,
 }: StudyCardProps) {
   const [revealed, setRevealed] = useState(false);
+  const [editing, setEditing] = useState(false);
   const orientation = position.side_to_move === "b" ? "black" : "white";
 
   return (
@@ -99,8 +104,29 @@ export default function StudyCard({
             )}
           </div>
 
+          {onEdited && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="w-full rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700"
+            >
+              ✎ Editar tarjeta
+            </button>
+          )}
+
           {footer}
         </div>
+      )}
+
+      {editing && (
+        <SaveCardSheet
+          fen={position.fen}
+          position={position}
+          initialTree={tree}
+          initialTagIds={cardTags.map((t) => t.id)}
+          onClose={() => setEditing(false)}
+          onSaved={() => onEdited?.()}
+        />
       )}
     </>
   );

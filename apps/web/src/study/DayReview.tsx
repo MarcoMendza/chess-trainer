@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { rateCard } from "./fsrs.ts";
-import { getDayReviewQueue, type StudyCard as StudyCardData } from "./repo.ts";
-import { listTags } from "../tags/repo.ts";
+import {
+  getDayReviewQueue,
+  getPosition,
+  type StudyCard as StudyCardData,
+} from "./repo.ts";
+import { listTags, tagsForPosition } from "../tags/repo.ts";
 import { useCardTree } from "./useCardTree.ts";
 import StudyCard from "./StudyCard.tsx";
 import type { PlayMode } from "./StudyPlayer.tsx";
@@ -75,8 +79,29 @@ export default function DayReview() {
     await loadQueue(remainingNew(s));
   }
 
+  const [cardNonce, setCardNonce] = useState(0);
   const current = queue[index];
-  const tree = useCardTree(current?.position.id);
+  const tree = useCardTree(current?.position.id, cardNonce);
+
+  // Tras editar la tarjeta actual: recarga su posición/tags en la cola y refresca el árbol.
+  async function onEdited() {
+    if (!current) return;
+    const [pos, tg, tags] = await Promise.all([
+      getPosition(current.position.id),
+      tagsForPosition(current.position.id),
+      listTags(),
+    ]);
+    setTagsById(new Map(tags.map((t) => [t.id, t])));
+    if (pos) {
+      const tagIds = tg.map((t) => t.id);
+      setQueue((q) =>
+        q.map((c, i) =>
+          i === index ? { ...c, position: pos, tagIds } : c,
+        ),
+      );
+    }
+    setCardNonce((n) => n + 1);
+  }
 
   async function onRate(rating: ReviewRating) {
     if (!current) return;
@@ -170,6 +195,7 @@ export default function DayReview() {
         playMode={playMode}
         onPlayModeChange={setPlayMode}
         onAnalyze={(fen) => navigate("/analizar", { state: { fen } })}
+        onEdited={() => void onEdited()}
         footer={
           <div className="grid grid-cols-4 gap-2">
             {RATINGS.map((r) => (

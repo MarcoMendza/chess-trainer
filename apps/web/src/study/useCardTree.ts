@@ -7,7 +7,10 @@ import type { VariationNode } from "../db/schema.ts";
  * Reinicia a null al cambiar de posición y cancela cargas obsoletas. Lo usan tanto el
  * repaso del día como la práctica para decidir si pintan StudyPlayer o tablero simple.
  */
-export function useCardTree(positionId: string | undefined): VariationNode | null {
+export function useCardTree(
+  positionId: string | undefined,
+  nonce?: number,
+): VariationNode | null {
   const [tree, setTree] = useState<VariationNode | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -20,6 +23,7 @@ export function useCardTree(positionId: string | undefined): VariationNode | nul
     return () => {
       cancelled = true;
     };
-  }, [positionId]);
+    // `nonce` fuerza recarga tras editar la tarjeta sin cambiar de posición.
+  }, [positionId, nonce]);
   return tree;
 }

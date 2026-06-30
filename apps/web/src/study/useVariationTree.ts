@@ -20,8 +20,14 @@ import { promoteAtPath } from "../games/pgnTree.ts";
  * actual crea (o reutiliza) un hijo y navega hacia él. Coloca color/nota en el nodo
  * seleccionado (la raíz no admite color/nota).
  */
-export function useVariationTree(rootFen: string) {
-  const [tree, setTree] = useState<VariationNode>(() => createTree(rootFen));
+export function useVariationTree(
+  rootFen: string,
+  initialTree?: VariationNode | null,
+) {
+  // Con `initialTree` (editar partida/tarjeta) se siembra desde él; si no, raíz nueva.
+  const [tree, setTree] = useState<VariationNode>(
+    () => initialTree ?? createTree(rootFen),
+  );
   const [path, setPath] = useState<NodePath>([]);
 
   const current = nodeAtPath(tree, path) ?? tree;

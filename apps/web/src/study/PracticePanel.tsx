@@ -7,7 +7,9 @@ import {
   listTags,
   positionsByCategory,
   tagIdsByPosition,
+  tagsForPosition,
 } from "../tags/repo.ts";
+import { getPosition } from "./repo.ts";
 import { CATEGORIES, CATEGORY_LABEL, categoryChip } from "../tags/categories.ts";
 import type { Position, Tag, TagCategory } from "../db/schema.ts";
 
@@ -43,8 +45,25 @@ export default function PracticePanel() {
     setIndex(0);
   }
 
+  const [cardNonce, setCardNonce] = useState(0);
   const current = positions[index];
-  const tree = useCardTree(current?.id);
+  const tree = useCardTree(current?.id, cardNonce);
+
+  // Tras editar la ficha actual: recarga su posición/tags en memoria y refresca el árbol.
+  async function onEdited() {
+    if (!current) return;
+    const [pos, tg, tags] = await Promise.all([
+      getPosition(current.id),
+      tagsForPosition(current.id),
+      listTags(),
+    ]);
+    setTagsById(new Map(tags.map((t) => [t.id, t])));
+    if (pos) {
+      setPositions((ps) => ps.map((p, i) => (i === index ? pos : p)));
+      setTagIds((m) => new Map(m).set(current.id, tg.map((t) => t.id)));
+    }
+    setCardNonce((n) => n + 1);
+  }
 
   // Selector de categoría.
   if (!category) {
@@ -109,6 +128,7 @@ export default function PracticePanel() {
             playMode={playMode}
             onPlayModeChange={setPlayMode}
             onAnalyze={(fen) => navigate("/analizar", { state: { fen } })}
+            onEdited={() => void onEdited()}
           />
 
           <div className="flex items-center justify-between gap-2">
