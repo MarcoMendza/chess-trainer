@@ -10,7 +10,7 @@ import {
   tagsForPosition,
 } from "../tags/repo.ts";
 import { getPosition } from "./repo.ts";
-import { CATEGORIES, CATEGORY_LABEL, categoryChip } from "../tags/categories.ts";
+import { useCategories } from "../tags/categories.ts";
 import type { Position, Tag, TagCategory } from "../db/schema.ts";
 
 /**
@@ -27,6 +27,7 @@ export default function PracticePanel() {
   const [loading, setLoading] = useState(false);
   const [playMode, setPlayMode] = useState<PlayMode>("color");
   const navigate = useNavigate();
+  const { categories, label, chip } = useCategories();
 
   async function pick(cat: TagCategory) {
     setCategory(cat);
@@ -74,14 +75,14 @@ export default function PracticePanel() {
         </div>
         <p className="text-sm text-gray-400">Elige una categoría para practicar:</p>
         <div className="grid grid-cols-2 gap-2">
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button
-              key={c}
+              key={c.key}
               type="button"
-              onClick={() => void pick(c)}
-              className={`rounded-lg border px-3 py-3 text-sm font-medium active:bg-gray-700 ${categoryChip(c)}`}
+              onClick={() => void pick(c.key)}
+              className={`rounded-lg border px-3 py-3 text-sm font-medium active:bg-gray-700 ${chip(c.key)}`}
             >
-              {CATEGORY_LABEL[c]}
+              {c.label}
             </button>
           ))}
         </div>
@@ -100,7 +101,7 @@ export default function PracticePanel() {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-        Práctica · {CATEGORY_LABEL[category]} · no cuenta para hoy
+        Práctica · {label(category)} · no cuenta para hoy
       </div>
 
       <div className="flex items-baseline justify-between">
@@ -116,7 +117,7 @@ export default function PracticePanel() {
 
       {!current ? (
         <p className="text-sm text-gray-400">
-          No hay fichas en {CATEGORY_LABEL[category]} todavía.
+          No hay fichas en {label(category)} todavía.
         </p>
       ) : (
         <>

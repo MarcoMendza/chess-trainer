@@ -1,19 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import type { Tag, TagCategory } from "../db/schema.ts";
+import type { Tag } from "../db/schema.ts";
 import {
   childrenOf,
   countPositionsBySubtree,
   listTags,
   rootTags,
 } from "../tags/repo.ts";
-import { CATEGORIES, CATEGORY_LABEL, categoryChip } from "../tags/categories.ts";
+import { useCategories } from "../tags/categories.ts";
 
 export default function TrainPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const { categories, chip } = useCategories();
 
   useEffect(() => {
     void (async () => {
@@ -38,12 +39,19 @@ export default function TrainPage() {
 
   // Raíces con contenido, agrupadas por categoría (la raíz define la categoría del árbol).
   const roots = rootTags(tags).filter((t) => has(t.id));
-  const groups: Array<{ category: TagCategory | "otros"; tags: Tag[] }> = [
-    ...CATEGORIES.map((category) => ({
-      category,
-      tags: roots.filter((t) => t.category === category),
+  const knownKeys = new Set(categories.map((c) => c.key));
+  const groups: Array<{ key: string; title: string; tags: Tag[] }> = [
+    ...categories.map((c) => ({
+      key: c.key,
+      title: c.label,
+      tags: roots.filter((t) => t.category === c.key),
     })),
-    { category: "otros" as const, tags: roots.filter((t) => !t.category) },
+    {
+      key: "__otros__",
+      title: "Sin categoría",
+      // Sin categoría o con un key que ya no existe (categoría borrada).
+      tags: roots.filter((t) => !t.category || !knownKeys.has(t.category)),
+    },
   ].filter((g) => g.tags.length > 0);
 
   function renderNode(tag: Tag, depth: number) {
@@ -52,7 +60,7 @@ export default function TrainPage() {
     return (
       <li key={tag.id}>
         <div
-          className={`flex items-center gap-1 rounded-lg border bg-gray-800 active:bg-gray-700 ${categoryChip(tag.category)}`}
+          className={`flex items-center gap-1 rounded-lg border bg-gray-800 active:bg-gray-700 ${chip(tag.category)}`}
           style={{ marginLeft: depth * 14 }}
         >
           {kids.length > 0 ? (
@@ -104,9 +112,9 @@ export default function TrainPage() {
       ) : (
         <div className="space-y-5">
           {groups.map((g) => (
-            <section key={g.category} className="space-y-2">
+            <section key={g.key} className="space-y-2">
               <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                {g.category === "otros" ? "Sin categoría" : CATEGORY_LABEL[g.category]}
+                {g.title}
               </h2>
               <ul className="space-y-2">{g.tags.map((t) => renderNode(t, 0))}</ul>
             </section>

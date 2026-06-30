@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getCollection, listGames } from "./repo.ts";
 import { listTags, tagIdsByGames } from "../tags/repo.ts";
-import { categoryChip } from "../tags/categories.ts";
+import { useCategories } from "../tags/categories.ts";
 import type { Collection, Game, Tag } from "../db/schema.ts";
 
 export default function CollectionDetailPage() {
@@ -13,6 +13,7 @@ export default function CollectionDetailPage() {
   const [tagsById, setTagsById] = useState<Map<string, Tag>>(new Map());
   const [filterTag, setFilterTag] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const { chip } = useCategories();
 
   useEffect(() => {
     if (!collectionId) return;
@@ -93,7 +94,7 @@ export default function CollectionDetailPage() {
               className={`rounded-full border px-3 py-1 text-xs ${
                 filterTag === t.id
                   ? "border-emerald-500 bg-emerald-600 text-white"
-                  : categoryChip(t.category)
+                  : chip(t.category)
               }`}
             >
               {t.name}

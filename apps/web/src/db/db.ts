@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 import type {
   AppSettings,
+  Category,
   Collection,
   Deck,
   Game,
@@ -29,6 +30,7 @@ class ChessTrainerDB extends Dexie {
   reviews!: EntityTable<Review, "id">;
   variations!: EntityTable<Variation, "id">;
   settings!: EntityTable<AppSettings, "id">;
+  categories!: EntityTable<Category, "id">;
 
   constructor() {
     super("chess-trainer");
@@ -70,6 +72,13 @@ class ChessTrainerDB extends Dexie {
     // cupo de nuevas/día). Migración aditiva: no recrea stores, no pierde datos.
     this.version(4).stores({
       settings: "id",
+    });
+    // v5 — Fase Final: categorías editables. SOLO agrega el store `categories`. Migración
+    // aditiva (no recrea stores, no pierde datos). Las 5 de fábrica se siembran de forma
+    // idempotente al arranque (ensureDefaultCategories), no en el upgrade, para cubrir
+    // también instalaciones nuevas. `Tag.category` sigue guardando el `key` (slug).
+    this.version(5).stores({
+      categories: "id, key, deleted, sort_order",
     });
   }
 }

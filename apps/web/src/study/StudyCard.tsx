@@ -2,7 +2,7 @@ import { type ReactNode, useState } from "react";
 import Chessground from "../board/Chessground.tsx";
 import StudyPlayer, { type PlayMode } from "./StudyPlayer.tsx";
 import SaveCardSheet from "./SaveCardSheet.tsx";
-import { categoryChip } from "../tags/categories.ts";
+import { useCategories } from "../tags/categories.ts";
 import { videoUrlAt } from "../lib/video.ts";
 import type { Position, Tag, VariationNode } from "../db/schema.ts";
 
@@ -38,6 +38,7 @@ export default function StudyCard({
 }: StudyCardProps) {
   const [revealed, setRevealed] = useState(false);
   const [editing, setEditing] = useState(false);
+  const { chip } = useCategories();
   const orientation = position.side_to_move === "b" ? "black" : "white";
 
   return (
@@ -84,7 +85,7 @@ export default function StudyCard({
                 {cardTags.map((t) => (
                   <span
                     key={t.id}
-                    className={`rounded-full border px-2 py-0.5 text-xs ${categoryChip(t.category)}`}
+                    className={`rounded-full border px-2 py-0.5 text-xs ${chip(t.category)}`}
                   >
                     {t.name}
                   </span>
