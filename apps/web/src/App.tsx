@@ -34,6 +34,7 @@ export default function App() {
             <Route path="/analizar" element={<AnalysisPage />} />
             <Route path="/entrenar" element={<TrainPage />} />
             <Route path="/entrenar/temas" element={<TagsAdminPage />} />
+            <Route path="/entrenar/sin-tema" element={<TrainThemePage untagged />} />
             <Route path="/entrenar/:tagId" element={<TrainThemePage />} />
           </Routes>
         </div>

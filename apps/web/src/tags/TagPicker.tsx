@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import type { Tag } from "../db/schema.ts";
 import { childrenOf, getOrCreateTag, listTags, validParentIdsForNew } from "./repo.ts";
 import { useCategories } from "./categories.ts";
@@ -10,10 +16,22 @@ interface TagPickerProps {
 }
 
 /**
+ * Handle imperativo: quien guarda (SaveCardSheet) llama `flush()` justo antes de
+ * persistir para no perder un tema que quedó tecleado sin añadir. Devuelve la lista
+ * final de tagIds (incluye el pendiente si lo había), evitando leer estado obsoleto.
+ */
+export interface TagPickerHandle {
+  flush: () => Promise<string[]>;
+}
+
+/**
  * Selector de tags con autocomplete (mobile-first): reusa tags existentes al teclear,
  * muestra los seleccionados como chips removibles y permite crear uno nuevo con categoría.
  */
-export default function TagPicker({ value, onChange }: TagPickerProps) {
+const TagPicker = forwardRef<TagPickerHandle, TagPickerProps>(function TagPicker(
+  { value, onChange },
+  ref,
+) {
   const [tags, setTags] = useState<Tag[]>([]);
   const [query, setQuery] = useState("");
   const { categories, label, chip } = useCategories();
@@ -47,15 +65,33 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
   function remove(id: string) {
     onChange(value.filter((v) => v !== id));
   }
-  async function createAndAdd() {
+
+  /**
+   * Convierte el texto tecleado en un tag y lo añade (reusa el existente si ya hay uno
+   * con ese nombre; si no, lo crea). Devuelve la lista final de tagIds. Base común de
+   * "Crear", de la tecla Enter y del `flush()` imperativo.
+   */
+  async function commitQuery(): Promise<string[]> {
     const name = query.trim();
-    if (!name) return;
-    // Con padre, la categoría se hereda de él (igual que en Gestionar temas).
-    const tag = await getOrCreateTag(name, effectiveCategory, newParent || null);
-    setNewParent("");
-    await refresh();
-    add(tag.id);
+    if (!name) return value;
+    const existing = tags.find((t) => t.name.toLowerCase() === name.toLowerCase());
+    let id: string;
+    if (existing) {
+      id = existing.id;
+    } else {
+      // Con padre, la categoría se hereda de él (igual que en Gestionar temas).
+      const tag = await getOrCreateTag(name, effectiveCategory, newParent || null);
+      id = tag.id;
+      setNewParent("");
+      await refresh();
+    }
+    setQuery("");
+    const next = value.includes(id) ? value : [...value, id];
+    onChange(next);
+    return next;
   }
+
+  useImperativeHandle(ref, () => ({ flush: commitQuery }), [commitQuery]);
 
   // Padres válidos para un tag nuevo, acotados a la categoría que se está creando
   // (al elegir padre se hereda su categoría, así que solo tienen sentido los de la
@@ -97,6 +133,12 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void commitQuery();
+          }
+        }}
         placeholder="Añadir tema… (escribe para buscar o crear)"
         className="w-full rounded-lg border border-gray-600 bg-gray-800 px-3 py-2 text-sm outline-none focus:border-emerald-500"
       />
@@ -156,7 +198,7 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
                 </label>
                 <button
                   type="button"
-                  onClick={createAndAdd}
+                  onClick={() => void commitQuery()}
                   className="ml-auto rounded bg-emerald-600 px-2 py-1 text-xs font-medium text-white active:bg-emerald-700"
                 >
                   Crear
@@ -173,4 +215,6 @@ export default function TagPicker({ value, onChange }: TagPickerProps) {
       )}
     </div>
   );
-}
+});
+
+export default TagPicker;

@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Chessground from "../board/Chessground.tsx";
 import { db } from "../db/db.ts";
-import { positionsBySubtree } from "../tags/repo.ts";
+import { positionsBySubtree, positionsWithoutTags } from "../tags/repo.ts";
 import { videoUrlAt } from "../lib/video.ts";
 import { getVariationByPosition } from "../study/variations.ts";
 import StudyPlayer, { type PlayMode } from "../study/StudyPlayer.tsx";
 import type { Position, Tag, VariationNode } from "../db/schema.ts";
 
-export default function TrainThemePage() {
+/** `untagged`: modo "Sin tema" (tarjetas sueltas), sin `tagId` en la ruta. */
+export default function TrainThemePage({ untagged = false }: { untagged?: boolean }) {
   const { tagId } = useParams<{ tagId: string }>();
   const navigate = useNavigate();
   const [tag, setTag] = useState<Tag | undefined>();
@@ -20,14 +21,19 @@ export default function TrainThemePage() {
   const [tree, setTree] = useState<VariationNode | null>(null);
   const [playMode, setPlayMode] = useState<PlayMode>("color");
 
+  const title = untagged ? "Sin tema" : tag?.name ?? "Tema";
+
   useEffect(() => {
-    if (!tagId) return;
     void (async () => {
-      setTag(await db.tags.get(tagId));
-      setPositions(await positionsBySubtree(tagId));
+      if (untagged) {
+        setPositions(await positionsWithoutTags());
+      } else if (tagId) {
+        setTag(await db.tags.get(tagId));
+        setPositions(await positionsBySubtree(tagId));
+      }
       setLoading(false);
     })();
-  }, [tagId]);
+  }, [tagId, untagged]);
 
   const current = positions[index];
 
@@ -59,11 +65,13 @@ export default function TrainThemePage() {
         <Link to="/entrenar" className="text-sm text-gray-400">
           ← Entrenar
         </Link>
-        <h1 className="mt-1 text-xl font-semibold">{tag?.name ?? "Tema"}</h1>
+        <h1 className="mt-1 text-xl font-semibold">{title}</h1>
       </div>
 
       {positions.length === 0 || !current ? (
-        <p className="text-sm text-gray-400">Este tema no tiene posiciones.</p>
+        <p className="text-sm text-gray-400">
+          {untagged ? "No hay tarjetas sueltas." : "Este tema no tiene posiciones."}
+        </p>
       ) : (
         <>
           <div className="flex items-baseline justify-between text-sm text-gray-400">

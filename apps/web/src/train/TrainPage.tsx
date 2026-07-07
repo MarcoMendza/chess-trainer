@@ -4,6 +4,7 @@ import type { Tag } from "../db/schema.ts";
 import {
   childrenOf,
   countPositionsBySubtree,
+  countPositionsWithoutTags,
   listTags,
   rootTags,
 } from "../tags/repo.ts";
@@ -12,15 +13,21 @@ import { useCategories } from "../tags/categories.ts";
 export default function TrainPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [counts, setCounts] = useState<Map<string, number>>(new Map());
+  const [looseCount, setLooseCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const { categories, chip } = useCategories();
 
   useEffect(() => {
     void (async () => {
-      const [t, c] = await Promise.all([listTags(), countPositionsBySubtree()]);
+      const [t, c, loose] = await Promise.all([
+        listTags(),
+        countPositionsBySubtree(),
+        countPositionsWithoutTags(),
+      ]);
       setTags(t);
       setCounts(c);
+      setLooseCount(loose);
       setLoading(false);
     })();
   }, []);
@@ -105,9 +112,9 @@ export default function TrainPage() {
 
       {loading ? (
         <p className="text-sm text-gray-400">Cargando…</p>
-      ) : roots.length === 0 ? (
+      ) : roots.length === 0 && looseCount === 0 ? (
         <p className="text-sm text-gray-400">
-          Aún no hay posiciones etiquetadas. Guarda tarjetas con temas desde Importar o Análisis.
+          Aún no hay posiciones. Guarda tarjetas (con o sin tema) desde Importar o Análisis.
         </p>
       ) : (
         <div className="space-y-5">
@@ -119,6 +126,28 @@ export default function TrainPage() {
               <ul className="space-y-2">{g.tags.map((t) => renderNode(t, 0))}</ul>
             </section>
           ))}
+
+          {/* Tarjetas sueltas: guardadas sin tema, no caen en ninguna categoría. */}
+          {looseCount > 0 && (
+            <section className="space-y-2">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                Sin tema
+              </h2>
+              <ul className="space-y-2">
+                <li>
+                  <Link
+                    to="/entrenar/sin-tema"
+                    className="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800 py-3 pl-3 pr-3 active:bg-gray-700"
+                  >
+                    <span className="font-medium text-gray-100">Sueltas</span>
+                    <span className="ml-2 shrink-0 text-sm text-gray-400">
+                      {looseCount}
+                    </span>
+                  </Link>
+                </li>
+              </ul>
+            </section>
+          )}
         </div>
       )}
     </div>

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Chessground from "../board/Chessground.tsx";
-import TagPicker from "../tags/TagPicker.tsx";
+import TagPicker, { type TagPickerHandle } from "../tags/TagPicker.tsx";
 import { saveCard, updateCardPosition } from "./repo.ts";
 import { useVariationTree } from "./useVariationTree.ts";
 import VariationEditor from "./VariationEditor.tsx";
@@ -44,6 +44,7 @@ export default function SaveCardSheet({
   const [sourceUrl, setSourceUrl] = useState(position?.source_url ?? "");
   const [sourceTime, setSourceTime] = useState(position?.source_time ?? "");
   const [tagIds, setTagIds] = useState<string[]>(initialTagIds ?? []);
+  const tagPickerRef = useRef<TagPickerHandle>(null);
   const [saving, setSaving] = useState(false);
   const [editorOpen, setEditorOpen] = useState(hasMoves(initialTree));
 
@@ -53,12 +54,14 @@ export default function SaveCardSheet({
   async function onSave() {
     setSaving(true);
     try {
+      // Rescata un tema tecleado sin añadir para que no se pierda (caía "en sueltas").
+      const finalTagIds = (await tagPickerRef.current?.flush()) ?? tagIds;
       const input = {
         idea: idea.trim() || undefined,
         evalNote: evalNote.trim() || undefined,
         sourceUrl: sourceUrl.trim() || undefined,
         sourceTime: sourceTime.trim() || undefined,
-        tagIds,
+        tagIds: finalTagIds,
         tree: hasMoves(variations.tree) ? variations.tree : undefined,
       };
       if (position) {
@@ -146,7 +149,7 @@ export default function SaveCardSheet({
 
         <div>
           <span className="mb-1 block text-xs text-gray-400">Temas</span>
-          <TagPicker value={tagIds} onChange={setTagIds} />
+          <TagPicker ref={tagPickerRef} value={tagIds} onChange={setTagIds} />
         </div>
 
         {/* ===== Editor de variantes (opcional) ===== */}

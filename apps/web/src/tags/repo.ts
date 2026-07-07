@@ -359,6 +359,27 @@ export async function positionsByCategory(
     .sort((a, b) => a.created_at - b.created_at);
 }
 
+/**
+ * Posiciones (no borradas) SIN ningún tag: las "tarjetas sueltas". No aparecen en
+ * ninguna categoría de Entrenar (que agrupa por tema), así que necesitan su propio
+ * hogar. Toda `position` nace junto a una `srs_card`, así que esto son tarjetas.
+ */
+export async function positionsWithoutTags(): Promise<Position[]> {
+  const [positions, rows] = await Promise.all([
+    db.positions.where("deleted").equals(0).toArray(),
+    db.position_tags.toArray(),
+  ]);
+  const tagged = new Set(rows.map((r) => r.position_id));
+  return positions
+    .filter((p) => !tagged.has(p.id))
+    .sort((a, b) => a.created_at - b.created_at);
+}
+
+/** Cuántas tarjetas sueltas (posiciones vivas sin tag) hay. */
+export async function countPositionsWithoutTags(): Promise<number> {
+  return (await positionsWithoutTags()).length;
+}
+
 /** IDs de partidas etiquetadas con el tag dado (para el filtro de Torneos). */
 export async function gameIdsByTag(tagId: string): Promise<Set<string>> {
   const rows = await db.game_tags.where("tag_id").equals(tagId).toArray();
