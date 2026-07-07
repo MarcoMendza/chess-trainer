@@ -33,3 +33,19 @@ body {
   left: 0;
   bottom: 0;
 }
+
+/*
+ * Piezas cburnett como iconos sueltos (paleta del editor de tablero). Reusa los
+ * sprites de chessground (selector `.cg-wrap piece.<role>.<color>`) fuera de un
+ * tablero: se envuelve en `.cg-wrap.piece-icon` y se anula el posicionamiento
+ * absoluto/12.5% de la pieza para que llene su botón.
+ */
+.cg-wrap.piece-icon {
+  width: 100%;
+  height: 100%;
+}
+.cg-wrap.piece-icon piece {
+  position: static;
+  width: 100%;
+  height: 100%;
+}

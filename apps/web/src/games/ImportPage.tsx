@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Chess } from "chess.js";
 import type { Key } from "chessground/types";
 import Chessground from "../board/Chessground.tsx";
 import { legalDests, toColor, tryLoadFen, tryLoadPgn } from "../board/useChess.ts";
 import { createGame, extractPgnHeaders, listCollections } from "./repo.ts";
+import BoardEditor from "./BoardEditor.tsx";
 import SaveCardSheet from "../study/SaveCardSheet.tsx";
 import type { Collection } from "../db/schema.ts";
 
@@ -17,7 +18,62 @@ export default function ImportPage() {
       <h1 className="text-xl font-semibold">Importar</h1>
       <ImportPgnSection />
       <LoadFenSection />
+      <BoardEditorSection />
     </div>
+  );
+}
+
+// ===== Montar posición en el tablero =====
+
+function BoardEditorSection() {
+  const navigate = useNavigate();
+  const [fen, setFen] = useState<string | null>(null);
+  const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  // Nuevo FEN válido ⇒ limpia el aviso de guardado previo.
+  const onFenChange = useCallback((f: string | null) => {
+    setFen(f);
+    setSavedMsg(null);
+  }, []);
+
+  return (
+    <section className="space-y-3">
+      <h2 className="font-medium">Montar posición</h2>
+      <p className="text-xs text-gray-400">
+        Elige una pieza y toca una casilla para colocarla; la goma la quita.
+      </p>
+      <BoardEditor onFenChange={onFenChange} />
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          disabled={!fen}
+          className="flex-1 rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700 disabled:opacity-40"
+        >
+          Guardar como tarjeta
+        </button>
+        <button
+          type="button"
+          onClick={() => fen && navigate("/analizar", { state: { fen } })}
+          disabled={!fen}
+          className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white active:bg-emerald-700 disabled:opacity-40"
+        >
+          Analizar
+        </button>
+      </div>
+      {savedMsg && <p className="text-sm text-emerald-400">{savedMsg}</p>}
+
+      {sheetOpen && fen && (
+        <SaveCardSheet
+          fen={fen}
+          onClose={() => setSheetOpen(false)}
+          onSaved={() =>
+            setSavedMsg("Guardado como tarjeta en «Posiciones sueltas».")
+          }
+        />
+      )}
+    </section>
   );
 }
 
