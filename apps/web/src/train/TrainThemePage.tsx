@@ -2,9 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import Chessground from "../board/Chessground.tsx";
 import { db } from "../db/db.ts";
-import { positionsBySubtree, positionsWithoutTags } from "../tags/repo.ts";
+import {
+  positionsBySubtree,
+  positionsWithoutTags,
+  tagsForPosition,
+} from "../tags/repo.ts";
 import { videoUrlAt } from "../lib/video.ts";
 import { getVariationByPosition } from "../study/variations.ts";
+import { getPosition } from "../study/repo.ts";
+import SaveCardSheet from "../study/SaveCardSheet.tsx";
 import StudyPlayer, { type PlayMode } from "../study/StudyPlayer.tsx";
 import type { Position, Tag, VariationNode } from "../db/schema.ts";
 
@@ -20,6 +26,10 @@ export default function TrainThemePage({ untagged = false }: { untagged?: boolea
   // Árbol de variantes de la posición actual (null = sin árbol). Modo de juego por sesión.
   const [tree, setTree] = useState<VariationNode | null>(null);
   const [playMode, setPlayMode] = useState<PlayMode>("color");
+  // Edición de la ficha actual (reusa SaveCardSheet). `nonce` fuerza recargar su árbol.
+  const [editing, setEditing] = useState(false);
+  const [editTagIds, setEditTagIds] = useState<string[]>([]);
+  const [nonce, setNonce] = useState(0);
 
   const title = untagged ? "Sin tema" : tag?.name ?? "Tema";
 
@@ -50,13 +60,29 @@ export default function TrainThemePage({ untagged = false }: { untagged?: boolea
     return () => {
       cancelled = true;
     };
-  }, [currentId]);
+  }, [currentId, nonce]);
 
   if (loading) return <p className="text-sm text-gray-400">Cargando…</p>;
 
   function go(delta: number) {
     setRevealed(false);
     setIndex((i) => Math.max(0, Math.min(positions.length - 1, i + delta)));
+  }
+
+  // Abre el editor con los tags actuales de la ficha (el árbol ya está en estado).
+  async function openEditor() {
+    if (!current) return;
+    const tags = await tagsForPosition(current.id);
+    setEditTagIds(tags.map((t) => t.id));
+    setEditing(true);
+  }
+
+  // Tras guardar: recarga la posición en la lista y refresca su árbol (nonce).
+  async function onEdited() {
+    if (!current) return;
+    const pos = await getPosition(current.id);
+    if (pos) setPositions((ps) => ps.map((p, i) => (i === index ? pos : p)));
+    setNonce((n) => n + 1);
   }
 
   return (
@@ -139,6 +165,16 @@ export default function TrainThemePage({ untagged = false }: { untagged?: boolea
             )}
           </div>
 
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void openEditor()}
+              className="flex-1 rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700"
+            >
+              ✎ Editar
+            </button>
+          </div>
+
           <div className="flex items-center justify-between gap-2">
             <button
               type="button"
@@ -157,6 +193,17 @@ export default function TrainThemePage({ untagged = false }: { untagged?: boolea
               Siguiente ▶
             </button>
           </div>
+
+          {editing && (
+            <SaveCardSheet
+              fen={current.fen}
+              position={current}
+              initialTree={tree}
+              initialTagIds={editTagIds}
+              onClose={() => setEditing(false)}
+              onSaved={() => void onEdited()}
+            />
+          )}
         </>
       )}
     </div>
