@@ -114,7 +114,7 @@ export default function TrainPage() {
         <p className="text-sm text-gray-400">Cargando…</p>
       ) : roots.length === 0 && looseCount === 0 ? (
         <p className="text-sm text-gray-400">
-          Aún no hay posiciones. Guarda tarjetas (con o sin tema) desde Importar o Análisis.
+          Aún no hay posiciones. Guarda tarjetas (con o sin tema) desde Nueva posición o Análisis.
         </p>
       ) : (
         <div className="space-y-5">

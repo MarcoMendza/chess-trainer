@@ -15,7 +15,7 @@ const inputClass =
 export default function ImportPage() {
   return (
     <div className="space-y-8">
-      <h1 className="text-xl font-semibold">Importar</h1>
+      <h1 className="text-xl font-semibold">Nueva posición</h1>
       <ImportPgnSection />
       <LoadFenSection />
       <BoardEditorSection />

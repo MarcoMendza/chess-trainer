@@ -15,7 +15,7 @@ const navItems = [
   { to: "/", label: "Estudiar", icon: "♞", end: true },
   { to: "/entrenar", label: "Entrenar", icon: "♟", end: false },
   { to: "/torneos", label: "Torneos", icon: "♜", end: false },
-  { to: "/importar", label: "Importar", icon: "♙", end: false },
+  { to: "/importar", label: "Posición", icon: "♙", end: false },
 ];
 
 export default function App() {
