@@ -24,6 +24,7 @@ export default function NewGamePage() {
   const [collectionName, setCollectionName] = useState("");
   const [defaultTimeControl, setDefaultTimeControl] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Motor embebido (reusa el on-device): analiza la posición del nodo actual.
   const engine = useEmbeddedEngine(variations.currentFen);
@@ -54,11 +55,29 @@ export default function NewGamePage() {
         <Link to={`/torneos/${collectionId}`} className="text-sm text-gray-400">
           ← {collectionName || "Volver"}
         </Link>
-        <h1 className="mt-1 text-xl font-semibold">Nueva partida</h1>
-        <p className="mt-1 text-xs text-gray-400">
-          Recrea la partida moviendo piezas. La línea que juegas es la principal; una
-          jugada alternativa desde cualquier punto crea una variante.
-        </p>
+        <div className="mt-1 flex items-center gap-2">
+          <h1 className="text-xl font-semibold">Nueva partida</h1>
+          <button
+            type="button"
+            onClick={() => setShowHelp((v) => !v)}
+            aria-label="Ayuda"
+            aria-expanded={showHelp}
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-gray-600 text-xs text-gray-400 active:bg-gray-700"
+          >
+            ?
+          </button>
+        </div>
+        {showHelp && (
+          <div className="mt-2 space-y-1 rounded-lg border border-gray-700 bg-gray-800 p-3 text-xs text-gray-300">
+            <p>
+              Recrea la partida moviendo piezas. La línea que juegas es la principal;
+              una jugada alternativa desde cualquier punto crea una variante.
+            </p>
+            <p className="text-gray-400">
+              Juega al menos una jugada para poder guardar.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end">
@@ -119,11 +138,6 @@ export default function NewGamePage() {
       >
         Guardar partida
       </button>
-      {!movesYet && (
-        <p className="text-center text-xs text-gray-500">
-          Juega al menos una jugada para guardar.
-        </p>
-      )}
 
       {showForm && (
         <SaveGameSheet
