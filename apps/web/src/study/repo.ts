@@ -115,6 +115,23 @@ export async function createPositionWithCard(input: NewCardInput): Promise<SrsCa
   return card;
 }
 
+/**
+ * Borra (soft) una tarjeta: marca `deleted=1` en la posición, su(s) `srs_card` y su
+ * árbol de variantes, en una transacción. Las consultas filtran `deleted===0`, así que
+ * desaparece de repaso/práctica/entrenar. Las filas `position_tags` (físicas) se dejan:
+ * se ignoran al no estar viva la posición. Consistente con el resto del soft-delete.
+ */
+export async function softDeleteCard(positionId: string): Promise<void> {
+  await db.transaction("rw", db.positions, db.srs_cards, db.variations, async () => {
+    await db.positions.update(positionId, { ...touch(), deleted: 1 });
+    const cards = await db.srs_cards.where("position_id").equals(positionId).toArray();
+    for (const c of cards) await db.srs_cards.update(c.id, { ...touch(), deleted: 1 });
+    // put (no update): `update` genera un KeyPaths recursivo que el árbol no soporta.
+    const vars = await db.variations.where("position_id").equals(positionId).toArray();
+    for (const v of vars) await db.variations.put({ ...v, ...touch(), deleted: 1 });
+  });
+}
+
 /** Posición viva por id (o undefined si no existe o está borrada). */
 export async function getPosition(id: string): Promise<Position | undefined> {
   const p = await db.positions.get(id);

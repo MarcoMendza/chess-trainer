@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import Chessground from "../board/Chessground.tsx";
 import StudyPlayer, { type PlayMode } from "./StudyPlayer.tsx";
 import SaveCardSheet from "./SaveCardSheet.tsx";
+import { softDeleteCard } from "./repo.ts";
 import { useCategories } from "../tags/categories.ts";
 import { videoUrlAt } from "../lib/video.ts";
 import type { Position, Tag, VariationNode } from "../db/schema.ts";
@@ -16,6 +17,8 @@ interface StudyCardProps {
   onAnalyze: (fen: string) => void;
   /** Si se pasa, muestra "Editar" y se llama tras guardar (para recargar la ficha). */
   onEdited?: () => void;
+  /** Si se pasa, muestra "Borrar" (con confirmación) y se llama tras el soft-delete. */
+  onDeleted?: () => void;
   /** Acciones bajo el panel de la idea, solo visibles al revelar (rating FSRS o etiqueta). */
   footer?: ReactNode;
 }
@@ -34,10 +37,12 @@ export default function StudyCard({
   onPlayModeChange,
   onAnalyze,
   onEdited,
+  onDeleted,
   footer,
 }: StudyCardProps) {
   const [revealed, setRevealed] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const { chip } = useCategories();
   const orientation = position.side_to_move === "b" ? "black" : "white";
 
@@ -105,15 +110,51 @@ export default function StudyCard({
             )}
           </div>
 
-          {onEdited && (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className="w-full rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700"
-            >
-              ✎ Editar tarjeta
-            </button>
-          )}
+          {(onEdited || onDeleted) &&
+            (confirmDelete ? (
+              <div className="flex items-center gap-2 rounded-lg border border-red-700 bg-red-950/40 px-3 py-2">
+                <span className="flex-1 text-sm text-red-200">¿Borrar esta tarjeta?</span>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="rounded-lg border border-gray-600 px-3 py-1.5 text-sm active:bg-gray-700"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await softDeleteCard(position.id);
+                    setConfirmDelete(false);
+                    onDeleted?.();
+                  }}
+                  className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white active:bg-red-700"
+                >
+                  Borrar
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                {onEdited && (
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="flex-1 rounded-lg border border-gray-600 px-4 py-2 text-sm active:bg-gray-700"
+                  >
+                    ✎ Editar
+                  </button>
+                )}
+                {onDeleted && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="flex-1 rounded-lg border border-red-800 px-4 py-2 text-sm text-red-300 active:bg-red-950/40"
+                  >
+                    🗑 Borrar
+                  </button>
+                )}
+              </div>
+            ))}
 
           {footer}
         </div>

@@ -196,6 +196,7 @@ export default function DayReview() {
         onPlayModeChange={setPlayMode}
         onAnalyze={(fen) => navigate("/analizar", { state: { fen } })}
         onEdited={() => void onEdited()}
+        onDeleted={() => setQueue((q) => q.filter((_, i) => i !== index))}
         footer={
           <div className="grid grid-cols-4 gap-2">
             {RATINGS.map((r) => (

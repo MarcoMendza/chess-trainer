@@ -66,6 +66,13 @@ export default function PracticePanel() {
     setCardNonce((n) => n + 1);
   }
 
+  // Tras borrar la ficha actual: la quita de la lista y reencuadra el índice.
+  function onDeleted() {
+    const next = positions.filter((_, i) => i !== index);
+    setPositions(next);
+    setIndex((i) => Math.min(i, Math.max(0, next.length - 1)));
+  }
+
   // Selector de categoría.
   if (!category) {
     return (
@@ -130,6 +137,7 @@ export default function PracticePanel() {
             onPlayModeChange={setPlayMode}
             onAnalyze={(fen) => navigate("/analizar", { state: { fen } })}
             onEdited={() => void onEdited()}
+            onDeleted={onDeleted}
           />
 
           <div className="flex items-center justify-between gap-2">
